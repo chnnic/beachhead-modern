@@ -449,7 +449,7 @@ function warn(text,col){G.warn={text,col:col||'#ffcf4a',t:0};}
 function warnOnce(k,text){if(G.seen[k])return;G.seen[k]=1;warn(text);sfx.alarm();}
 function spawn(type,o){const e=Object.assign({type,x:0,y:0,z:100,hp:1,w:1,h:1,d:1,armor:0,t:0,flash:0,alive:true,air:false,face:1},o||{});
   DEF[type].init(e);
-  if(G.mode==='rogue'&&ELITE.includes(type)&&Math.random()<Math.min(0.3,0.04+G.wave*0.012)*(type==='boat'?0.4:1)){e.elite=true;e.hp*=2.2;warnOnce('elite','精英敌人出现');}
+  if(G.mode==='rogue'&&ELITE.includes(type)&&Math.random()<Math.min(0.3,0.04+G.wave*0.012)*(type==='boat'?0.4:1)){e.elite=true;e.hp*=2.2;if(type==='jet')e.vz*=0.55;warnOnce('elite','精英敌人出现');}
   e.maxHp=e.hp;G.enemies.push(e);return e;}
 const ELITE=['boat','hover','tank','heli','jet'];
 const CHARGE_T=4;
@@ -507,7 +507,7 @@ function killEnemy(e){
   G.strike=Math.min(100,G.strike+d.score/22*(1+0.5*(G.perks.striker||0)));
   if(G.perks.leech)G.hp=Math.min(G.maxHp,G.hp+0.6*G.perks.leech);
   if(G.perks.chain&&e.type!=='infantry'&&e.type!=='drone'){const n=G.perks.chain;G.delayed.push({t:0.12,fn:()=>explode(e.x,e.y+1,e.z,6+e.w*0.25,25*n,{fx:2})});}
-  if(e.elite&&G.eliteDrops<1&&Math.random()<0.6&&++G.eliteDrops)G.crates.push({crate:1,x:e.x,y:e.air?e.y+1:0,z:Math.max(NEAR_Z+3,e.z),t:1,hp:3,boost:2,end:false,landed:false});
+  if(e.elite&&G.eliteDrops<2&&Math.random()<(G.eliteDrops===0?1:0.5)&&++G.eliteDrops)G.crates.push({crate:1,x:e.x,y:e.air?e.y+1:0,z:Math.max(NEAR_Z+3,e.z),t:1,hp:3,boost:2,end:false,landed:false});
   floater(e.x,e.y+e.h+0.6,e.z,'+'+pts);
   e.dieT=d.dieTime||0;d.kill&&d.kill(e);
 }
