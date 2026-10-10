@@ -430,7 +430,7 @@ function buildWave(n){
   if(n===6||(n>6&&n%3===0)){add(4,'ship');if(n>=15)add(dur*0.6,'ship');}
   if(n>=8){const t=dur*0.85;for(let i=0;i<3+Math.floor((n-8)/2);i++)add(t+rand(0,3),'boat');add(t+1,'heli');add(t+2,'drones',{n:4+Math.floor(n/3)});}
   if(G.mode==='rogue'&&n%2===0)add(rand(10,dur*0.8),'airdrop');
-  if(n%10===0){const keep=ev.filter(x=>x.type==='airdrop'||(x.type!=='ship'&&Math.random()<0.45));ev.length=0;ev.push(...keep);add(2,'boss');}
+  if(n%10===0){const keep=ev.filter(x=>x.type==='airdrop'||(!['ship','heli','jet'].includes(x.type)&&Math.random()<0.35));ev.length=0;ev.push(...keep);add(2,'boss');}
   return ev.sort((a,b)=>a.t-b.t);
 }
 function doEvent(ev){
@@ -452,6 +452,7 @@ function spawn(type,o){const e=Object.assign({type,x:0,y:0,z:100,hp:1,w:1,h:1,d:
   if(G.mode==='rogue'&&ELITE.includes(type)&&Math.random()<Math.min(0.3,0.04+G.wave*0.012)*(type==='boat'?0.4:1)){e.elite=true;e.hp*=2.2;warnOnce('elite','精英敌人出现');}
   e.maxHp=e.hp;G.enemies.push(e);return e;}
 const ELITE=['boat','hover','tank','heli','jet'];
+const CHARGE_T=4;
 const BOSS_NAMES=['海神号','波塞冬号','利维坦号'];
 const bossName=n=>BOSS_NAMES[(Math.max(1,Math.round(n/10))-1)%BOSS_NAMES.length];
 
@@ -745,10 +746,10 @@ drone:{score:30,cr:8,dieTime:0,
     if(Math.sin(e.t*14)>0)gq(0,-0.2,'red',Math.max(0.5,6/DS),1);
   }},
 boss:{score:5000,cr:2000,dieTime:8,
-  init(e){e.name=bossName(G.wave);e.boss=true;e.w=34;e.h=36;e.d=30;e.drawW=230;e.hp=600*G.dHp;e.armor=0.5;
+  init(e){e.name=bossName(G.wave);e.boss=true;e.w=34;e.h=36;e.d=30;e.drawW=230;e.hp=450*G.dHp;e.armor=0.4;
     e.z=720;e.x=0;e.face=Math.random()<0.5?1:-1;e.hx=40*e.face;e.invuln=true;e.phase=1;e.tz=330;
     e.deployT=8;e.droneT=14;e.chargeCd=6;e.charging=0;e.chargeDmg=0;e.boomT=0;e.parts=[];
-    for(const d of [{kind:'gun',lx:82,ly:12,w:11,h:7,hp:160},{kind:'gun',lx:-84,ly:12,w:11,h:7,hp:160},{kind:'vls',lx:-38,ly:12,w:10,h:3.5,hp:120},{kind:'vls',lx:2,ly:12,w:10,h:3.5,hp:120}])
+    for(const d of [{kind:'gun',lx:82,ly:12,w:11,h:7,hp:120},{kind:'gun',lx:-84,ly:12,w:11,h:7,hp:120},{kind:'vls',lx:-38,ly:12,w:10,h:3.5,hp:90},{kind:'vls',lx:2,ly:12,w:10,h:3.5,hp:90}])
       e.parts.push(spawn('bpart',Object.assign({parent:e},d)));
     e.hull=spawn('bhull',{parent:e});},
   update(e,dt){
@@ -758,16 +759,16 @@ boss:{score:5000,cr:2000,dieTime:8,
     if(!e.arrived)return;
     e.deployT-=dt;if(e.deployT<=0){e.deployT=rand(18,22);
       const b=spawn('boat');b.z=e.z-16;b.x=e.x-70*e.face+rand(-10,10);}
-    e.droneT-=dt;if(e.droneT<=0){e.droneT=(e.phase===2?10:18)/G.dF;
-      for(let i=0;i<4+Math.floor(G.wave/10);i++){const d=spawn('drone',{gx:e.x});d.z=e.z-8;d.y=rand(14,24);}}
+    e.droneT-=dt;if(e.droneT<=0){e.droneT=(e.phase===2?14:22)/G.dF;
+      for(let i=0;i<3+Math.floor(G.wave/10);i++){const d=spawn('drone',{gx:e.x});d.z=e.z-8;d.y=rand(14,24);}}
     if(e.phase!==2)return;
     if(e.charging>0){e.charging-=dt;
-      if(e.chargeDmg>=e.maxHp*0.06){e.charging=0;e.chargeCd=rand(9,12)/G.dF;warn('充能被打断！','#7fe08a');
+      if(e.chargeDmg>=e.maxHp*0.04){e.charging=0;e.chargeCd=rand(11,14)/G.dF;warn('充能被打断！','#7fe08a');
         fxExplosion(e.x+100*e.face,15,e.z-3,3,'air');sfx.boom(1.5,e.z);}
-      else if(e.charging<=0){e.chargeCd=rand(10,13)/G.dF;const [bx,by]=P(e.x+100*e.face,15,e.z);
+      else if(e.charging<=0){e.chargeCd=rand(12,15)/G.dF;const [bx,by]=P(e.x+100*e.face,15,e.z);
         G.tracers.push({x0:bx,y0:by,x1:cx+rand(-40,40),y1:H+20,life:0.45,col:'120,220,255',w:12},{x0:bx,y0:by,x1:cx,y1:H+20,life:0.3,col:'255,255,255',w:4});
-        sfx.beam();damagePlayer(20*G.dD,'big');G.shake=Math.max(G.shake,24);}}
-    else{e.chargeCd-=dt;if(e.chargeCd<=0&&onScreen(e,100*e.face)){e.charging=3.2;e.chargeDmg=0;warn('电磁主炮充能 · 集火舰岛打断！','#5fd0ff');sfx.charge();}}
+        sfx.beam();damagePlayer(15*G.dD,'big');G.shake=Math.max(G.shake,24);}}
+    else{e.chargeCd-=dt;if(e.chargeCd<=0&&onScreen(e,100*e.face)){e.charging=CHARGE_T;e.chargeDmg=0;warn('电磁主炮充能 · 集火舰岛打断！','#5fd0ff');sfx.charge();}}
   },
   kill(e){warn(`${e.name} 已被击毁！`,'#7fe08a');G.shake=Math.max(G.shake,30);sfx.boom(3,e.z);
     for(const p of e.parts)if(p.alive){p.alive=false;p.dieT=0;}
@@ -808,20 +809,20 @@ boss:{score:5000,cr:2000,dieTime:8,
     for(const p of e.parts)if(p.muz>0)gq(p.lx+14,-17,'hot',10,1);
     if(e.invuln&&e.alive){const a=0.35+0.15*Math.sin(G.time*4);ctx.strokeStyle=`rgba(95,208,255,${a})`;ctx.fillStyle='rgba(95,208,255,.07)';ctx.lineWidth=0.5;
       ctx.beginPath();ctx.ellipse(40*e.face,-30,22,21,0,0,6.2832);ctx.fill();ctx.stroke();}
-    if(e.charging>0)gq(108,-15,'blue',4+(1-e.charging/3.2)*16,1);
+    if(e.charging>0)gq(108,-15,'blue',4+(1-e.charging/CHARGE_T)*16,1);
   }},
 bpart:{score:300,cr:150,dieTime:0,
-  init(e){e.hp=e.hp*G.dHp;e.armor=0.6;e.d=8;e.y=e.ly;e.fireT=rand(2,5)+(e.kind==='vls'?4:0);e.salvo=0;e.salvoT=0;e.muz=0;this.sync(e);},
+  init(e){e.hp=e.hp*G.dHp;e.armor=0.45;e.d=8;e.y=e.ly;e.fireT=rand(2,5)+(e.kind==='vls'?4:0);e.salvo=0;e.salvoT=0;e.muz=0;this.sync(e);},
   sync(e){const b=e.parent;e.x=b.x+e.lx*b.face;e.z=b.z-2;e.y=e.ly;},
   update(e,dt){const b=e.parent;this.sync(e);if(!b.alive){e.alive=false;e.dieT=0;return;}
     e.muz=Math.max(0,e.muz-dt);
     if(e.salvo>0){e.salvoT-=dt;if(e.salvoT<=0){e.salvo--;e.salvoT=0.45;smoke(e.x,e.y+3,e.z,1.5,'light',1.5,0.5);sfx.rpg();
-      G.hostiles.push({ho:1,x:e.x+rand(-2,2),y:e.y+3,z:e.z,dmg:9,sp:rand(30,36),tx:rand(-5,5),ty:CAM_H-2,tz:-2,t:0,hp:3,big:1});}}
+      G.hostiles.push({ho:1,x:e.x+rand(-2,2),y:e.y+3,z:e.z,dmg:7,sp:rand(26,30),tx:rand(-5,5),ty:CAM_H-2,tz:-2,t:0,hp:2,big:1});}}
     if(!b.arrived)return;
     e.fireT-=dt;if(e.fireT>0||!onScreen(e))return;
-    if(e.kind==='gun'){e.fireT=rand(7,9)/G.dF;e.muz=0.18;smoke(e.x+12*b.face,e.y+5,e.z,3,'light',2.5,0.6);sfx.boom(1.2,e.z);warn('主炮齐射！','#ff6a5a');
-      G.delayed.push({t:1.4,fn:()=>sfx.whistle()},{t:2.6,fn:()=>{if(Math.random()<0.6)damagePlayer(10*G.dD,'big');else nearMiss(3);}});}
-    else{e.fireT=rand(10,13)/G.dF;e.salvo=3;e.salvoT=0;warn('巡航导弹来袭 · 击落它们','#ff6a5a');}
+    if(e.kind==='gun'){e.fireT=rand(9,12)/G.dF;e.muz=0.18;smoke(e.x+12*b.face,e.y+5,e.z,3,'light',2.5,0.6);sfx.boom(1.2,e.z);warn('主炮齐射！','#ff6a5a');
+      G.delayed.push({t:1.4,fn:()=>sfx.whistle()},{t:2.6,fn:()=>{if(Math.random()<0.5)damagePlayer(8*G.dD,'big');else nearMiss(3);}});}
+    else{e.fireT=rand(13,16)/G.dF;e.salvo=2;e.salvoT=0;warn('巡航导弹来袭 · 击落它们','#ff6a5a');}
   },
   kill(e){const b=e.parent;fxExplosion(e.x,e.y+3,e.z,4,'air');sfx.boom(2,e.z);
     const left=b.parts.filter(p=>p.alive).length;
@@ -1258,7 +1259,7 @@ function drawHUD(){
     let cur=Math.max(0,boss.hp),mx=boss.maxHp;for(const p of boss.parts){cur+=p.alive?Math.max(0,p.hp):0;mx+=p.maxHp;}
     bar(bx,by+20*k,bw,10*k,cur/mx,boss.invuln?'#ff8a5a':'#ff4d3a');
     if(boss.invuln)txt('护盾',bx+bw-4*k,by+29*k,9*k,'#5fd0ff','right',UIF,800);
-    if(boss.charging>0){bar(bx,by+35*k,bw,4*k,1-boss.charging/3.2,'#5fd0ff');txt('电磁炮充能',bx,by+46*k,10*k,'#5fd0ff','left',UIF,800);}}
+    if(boss.charging>0){bar(bx,by+35*k,bw,4*k,1-boss.charging/CHARGE_T,'#5fd0ff');txt('电磁炮充能',bx,by+46*k,10*k,'#5fd0ff','left',UIF,800);}}
   for(const c of G.crates){const [sx,sy,s]=P(c.x,c.y,c.z),top=sy-(c.landed?1.8:6.6)*s-8;
     txt(c.end?'波次补给':'补给',sx,top,12*k,'#7fe08a','center',UIF,800);}
   // armor bottom-left
