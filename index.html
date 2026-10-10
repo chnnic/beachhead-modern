@@ -62,13 +62,33 @@ kbd{font-family:var(--num);font-weight:700;font-size:13px;min-width:30px;text-al
 .up button:disabled{opacity:.4;cursor:not-allowed;border-color:var(--line);color:var(--muted);background:transparent}
 .big-num{font-family:var(--num);font-size:56px;font-weight:700;color:#fff;line-height:1}
 .danger{color:var(--danger)}
-#touch{position:fixed;right:14px;bottom:150px;z-index:5;display:none;flex-direction:column;gap:10px}
-#touch.show{display:flex}
-#touch button{width:74px;height:74px;border-radius:50%;border:2px solid rgba(255,255,255,.35);background:rgba(10,16,24,.55);color:#fff;
-  font-weight:700;font-size:14px;font-family:var(--ui);backdrop-filter:blur(4px)}
-#touch button:active{background:rgba(255,178,31,.45)}
-#tpause{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:5;display:none;border-radius:8px;border:1px solid var(--line);
-  background:rgba(10,16,24,.6);color:#fff;padding:6px 14px;font-size:13px}
+:root{--cb:62px;--fh:72px;--sb:env(safe-area-inset-bottom,0px)}
+#tpad{position:fixed;left:12px;bottom:calc(12px + var(--sb));right:calc(2*var(--cb) + 36px);max-width:520px;height:calc(2*var(--cb) + var(--fh) + 16px);
+  z-index:5;display:none;border-radius:18px;border:1.5px solid rgba(255,255,255,.22);touch-action:none;
+  background:rgba(10,16,24,.4) radial-gradient(rgba(255,255,255,.13) 1px,transparent 1.6px) 0 0/18px 18px;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+#tpad.active{border-color:rgba(255,178,31,.75);background-color:rgba(255,178,31,.08)}
+#tpad .hint{position:absolute;left:14px;top:11px;right:56px;font-size:12px;color:rgba(255,255,255,.55);letter-spacing:.06em;pointer-events:none}
+#tdot{position:absolute;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;border:2px solid rgba(255,178,31,.85);background:rgba(255,178,31,.16);display:none;pointer-events:none}
+#tpad.active #tdot{display:block}
+#tpause{position:absolute;right:8px;top:8px;width:40px;height:32px;border-radius:9px;border:1px solid rgba(255,255,255,.25);background:rgba(10,16,24,.65);
+  color:#fff;font-weight:800;font-size:13px;letter-spacing:1px;touch-action:none}
+#touch{position:fixed;right:12px;bottom:calc(12px + var(--sb));z-index:5;display:none;grid-template-columns:repeat(2,var(--cb));gap:8px;touch-action:none}
+#touch button{--p:0%;width:var(--cb);height:var(--cb);padding:0;border-radius:14px;border:1.5px solid rgba(255,255,255,.3);color:#fff;font-family:var(--ui);
+  background:linear-gradient(to top,rgba(255,178,31,.42) var(--p),rgba(10,16,24,.6) var(--p));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  touch-action:none;transition:transform .08s}
+#touch button b{font-size:14px;font-weight:800}
+#touch button span{font-family:var(--num);font-size:12px;font-weight:700;color:rgba(255,255,255,.8);min-height:14px}
+#touch button.on{border-color:#ffcf4a;box-shadow:0 0 12px rgba(255,190,60,.45)}
+#touch button.off{opacity:.45}
+#touch button.pressed{transform:scale(.94)}
+#touch .fire{grid-column:span 2;width:auto;height:var(--fh);border-radius:16px;border-color:rgba(255,120,100,.55);
+  background:linear-gradient(to right,rgba(255,77,60,.55) var(--p),rgba(110,22,18,.5) var(--p))}
+#touch .fire b{font-size:17px;letter-spacing:.3em}
+body.touchui #tpad{display:block}
+body.touchui #touch{display:grid}
+@media (orientation:landscape) and (max-height:520px){:root{--cb:52px;--fh:58px}
+  #tpad{max-width:40vw;background:rgba(10,16,24,.1) radial-gradient(rgba(255,255,255,.1) 1px,transparent 1.6px) 0 0/18px 18px;backdrop-filter:none;-webkit-backdrop-filter:none}
+  #tpad .hint{color:rgba(255,255,255,.4)}}
 .modes{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
 .mode{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:6px;padding:16px 18px;border-radius:12px;
   border:1px solid rgba(255,178,31,.45);background:linear-gradient(180deg,rgba(255,199,74,.16),rgba(255,154,31,.05));color:var(--text);transition:transform .12s,filter .12s}
@@ -161,13 +181,17 @@ kbd{font-family:var(--num);font-weight:700;font-size:13px;min-width:30px;text-al
   </div>
 </div></div>
 
-<div id="touch">
-  <button id="tCannon">机炮</button>
-  <button id="tMissile">导弹</button>
-  <button id="tStrike">空袭</button>
-  <button id="tNuke">核弹</button>
+<div id="tpad" aria-label="触摸板">
+  <div class="hint">拖动移动准星</div><i id="tdot"></i>
+  <button id="tpause" aria-label="暂停">II</button>
 </div>
-<button id="tpause">暂停</button>
+<div id="touch">
+  <button id="tStrike"><b>空袭</b><span></span></button>
+  <button id="tNuke"><b>核弹</b><span></span></button>
+  <button id="tCannon"><b>机炮</b><span></span></button>
+  <button id="tMissile"><b>导弹</b><span></span></button>
+  <button id="tFire" class="fire"><b>射击</b><span></span></button>
+</div>
 
 <script>
 'use strict';
@@ -176,7 +200,8 @@ kbd{font-family:var(--num);font-weight:700;font-size:13px;min-width:30px;text-al
 const cvs=document.getElementById('c'), ctx=cvs.getContext('2d');
 const CAM_H=12, SHORE_Z=70, FAR_Z=900, M=24;
 let W=0,H=0,DPR=1,cx=0,hy=0,F=1,shoreY=0,seaEndY=0,NEAR_Z=30,BOTTOM_Z=25,HK=1;
-let PAL=null, bg=null, fg=null, state='menu', G=null, muted=false;
+let PAL=null, bg=null, fg=null, state='menu', G=null, muted=false, RESERVE=0, CTRL_TOP=1e9;
+let touchMode=!!(window.matchMedia&&matchMedia('(pointer: coarse)').matches);
 const input={x:0,y:0,fire:false,alt:false,shift:false,touch:false};
 const rand=(a,b)=>a+Math.random()*(b-a), randi=(a,b)=>Math.floor(a+Math.random()*(b-a+1));
 const clamp=(v,a,b)=>v<a?a:v>b?b:v, lerp=(a,b,t)=>a+(b-a)*t;
@@ -296,7 +321,7 @@ const sfx={
 
 // ================================================================ layout
 function resize(){
-  DPR=Math.min(window.devicePixelRatio||1,2);W=Math.max(innerWidth,2);H=Math.max(innerHeight,2);
+  DPR=Math.min(window.devicePixelRatio||1,2);W=Math.max(innerWidth,2);H=Math.max(innerHeight-RESERVE,2);cvs.style.height=H+'px';
   cvs.width=Math.round(W*DPR);cvs.height=Math.round(H*DPR);
   cx=W/2;hy=Math.round(H*(W<H?0.36:0.3));F=Math.min(H*1.45,W*1.15);
   shoreY=hy+CAM_H*F/SHORE_Z;seaEndY=hy+CAM_H*F/(SHORE_Z+4);
@@ -1235,13 +1260,14 @@ function drawHUD(){
   for(const c of G.crates){const [sx,sy,s]=P(c.x,c.y,c.z),top=sy-(c.landed?1.8:6.6)*s-8;
     txt(c.end?'波次补给':'补给',sx,top,12*k,'#7fe08a','center',UIF,800);}
   // armor bottom-left
-  const aw=Math.min(280*k,W*0.36),ay=H-pad-58*k;panel(pad,ay,aw,58*k);
+  const tui=document.body.classList.contains('touchui'),bot=Math.min(H,CTRL_TOP)-(CTRL_TOP<H?8:pad);
+  const aw=Math.min(280*k,W*0.36),ay=bot-58*k;panel(pad,ay,aw,58*k);
   txt('装甲',pad+14*k,ay+22*k,13*k,'#c9d4df','left',UIF,700);
   const hpR=G.hp/G.maxHp;txt(`${Math.ceil(G.hp)} / ${G.maxHp}`,pad+aw-14*k,ay+22*k,16*k,hpR<0.3?'#ff5a4a':'#fff','right',NUMF,700);
   bar(pad+14*k,ay+32*k,aw-28*k,12*k,hpR,hpR>0.5?'#4fd27f':hpR>0.25?'#ffcf4a':'#ff4d4d');
   if(S.shieldMax>0){bar(pad+14*k,ay+47*k,aw-28*k,4*k,G.shield/S.shieldMax,'#5fd0ff');txt(`护盾 ${Math.floor(G.shield)}`,pad+50*k,ay+22*k,11*k,'#5fd0ff','left',UIF,700);}
   // weapons bottom-right
-  const ww=Math.min(300*k,W*0.4),wh=166*k,wx=W-pad-ww,wy=H-pad-wh;panel(wx,wy,ww,wh);
+  const ww=Math.min(300*k,W*0.4),wh=166*k,wx=W-pad-ww,wy=H-pad-wh;if(!tui){panel(wx,wy,ww,wh);
   const row=(i,label,key,draw)=>{const y=wy+14*k+i*30*k;txt(label,wx+14*k,y+12*k,13*k,'#dfe7ef','left',UIF,700);
     txt(key,wx+92*k,y+12*k,10*k,'#93a3b4','left',NUMF,700);draw(wx+128*k,y+3*k,ww-142*k);};
   row(0,'机枪','LMB',(x,y,w)=>{bar(x,y,w,9*k,G.heat,G.overheat?(Math.sin(G.time*20)>0?'#ff4d4d':'#7a2020'):G.heat>0.7?'#ff7a1a':'#ffcf4a');
@@ -1252,7 +1278,7 @@ function drawHUD(){
   row(4,'核弹','N',(x,y,w)=>{const gw=(w-4*k)/2;for(let i=0;i<2;i++)bar(x+i*(gw+4*k),y,gw,9*k,i<G.nukes?1:0,G.nuke?'#7a2a20':(Math.sin(G.time*5)>0?'#ff6a3a':'#ff9a3a'));
     if(G.nuke)txt('打击中',x+w/2,y+8*k,10*k,'#fff','center',UIF,800);});
   row(3,'空袭','Q',(x,y,w)=>{bar(x,y,w,9*k,G.strike/100,G.strike>=100?(Math.sin(G.time*8)>0?'#7fe08a':'#4fd27f'):'#4f8c62');
-    if(G.strike>=100)txt('就绪',x+w/2,y+8*k,10*k,'#08130b','center',UIF,800);});
+    if(G.strike>=100)txt('就绪',x+w/2,y+8*k,10*k,'#08130b','center',UIF,800);});}
   // lock reticle
   if(G.lock&&G.lock.alive){const r=eRect(G.lock),has=G.mCount>0,col=has?'#ffcf3f':'rgba(200,200,200,.5)';
     const m=Math.max(0,1-G.lockT*4)*18,x0=r.x0-6-m,x1=r.x1+6+m,y0=r.y0-6-m,y1=r.y1+6+m,cl=Math.min(14,(x1-x0)/3);
@@ -1280,7 +1306,7 @@ function drawHUD(){
     ctx.fillStyle='rgba(30,6,6,.6)';ctx.beginPath();ctx.roundRect(cx-ww2/2,y-24*k,ww2,36*k,8);ctx.fill();
     ctx.strokeStyle=w.col;ctx.lineWidth=1.5;ctx.stroke();txt('⚠ '+w.text,cx,y,18*k,w.col,'center',UIF,800);}}
   if(G.wave===1&&G.waveTime<12&&state==='play'){ctx.globalAlpha=Math.min(1,(12-G.waveTime)/2);
-    txt(input.touch?'触摸瞄准并射击 · 右侧按钮使用机炮/导弹/空袭':'按住左键机枪扫射 · 右键/Shift 高爆机炮 · 空格 导弹 · Q 空袭 · N 核弹',cx,H-pad-80*k,14*k,'#fff','center',UIF,600);ctx.globalAlpha=1;}
+    txt(tui?'用触摸板移动准星 · 按住「射击」开火':'按住左键机枪扫射 · 右键/Shift 高爆机炮 · 空格 导弹 · Q 空袭 · N 核弹',cx,bot-80*k,14*k,'#fff','center',UIF,600);ctx.globalAlpha=1;}
   // damage vignette
   const low=G.hp/G.maxHp<0.3?0.25+0.15*Math.sin(G.time*6):0;const dv=Math.max(G.dmgFlash,low);
   if(G.shieldHit>0){const g=ctx.createRadialGradient(cx,H/2,Math.min(W,H)*0.3,cx,H/2,Math.max(W,H)*0.75);
@@ -1587,16 +1613,51 @@ addEventListener('keydown',e=>{
 addEventListener('keyup',e=>{if(e.code==='ShiftLeft'||e.code==='ShiftRight')input.shift=false;});
 // touch
 let aimId=null;
-const tpos=t=>{input.x=t.clientX;input.y=Math.max(0,t.clientY-50);};
-cvs.addEventListener('touchstart',e=>{e.preventDefault();initAudio();input.touch=true;$('touch').classList.add('show');$('tpause').style.display='block';
+const tpos=t=>{input.x=t.clientX;input.y=clamp(t.clientY-50,0,H-6);};
+cvs.addEventListener('touchstart',e=>{e.preventDefault();initAudio();input.touch=true;touchMode=true;
   const t=e.changedTouches[0];if(aimId===null){aimId=t.identifier;tpos(t);input.fire=true;}},{passive:false});
 cvs.addEventListener('touchmove',e=>{e.preventDefault();for(const t of e.changedTouches)if(t.identifier===aimId)tpos(t);},{passive:false});
 const tend=e=>{for(const t of e.changedTouches)if(t.identifier===aimId){aimId=null;input.fire=false;}};
 cvs.addEventListener('touchend',tend);cvs.addEventListener('touchcancel',tend);
-const tb=(id,down,up)=>{const b=$(id);b.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();down();},{passive:false});
-  b.addEventListener('touchend',e=>{e.preventDefault();up&&up();},{passive:false});};
+const tb=(id,down,up)=>{const b=$(id);
+  b.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();initAudio();input.touch=true;b.classList.add('pressed');down();},{passive:false});
+  const end=e=>{e.preventDefault();e.stopPropagation();b.classList.remove('pressed');up&&up();};
+  b.addEventListener('touchend',end,{passive:false});b.addEventListener('touchcancel',end,{passive:false});};
+tb('tFire',()=>input.fire=true,()=>input.fire=false);
 tb('tCannon',()=>input.alt=true,()=>input.alt=false);tb('tMissile',fireMissile);tb('tStrike',callStrike);tb('tNuke',launchNuke);
+tb('tpause',()=>state==='play'?pause():resume());
 $('tpause').addEventListener('click',()=>state==='play'?pause():resume());
+// touchpad: relative drag moves the crosshair, with acceleration for fast swipes
+const tpad=$('tpad'),tdot=$('tdot');let padId=null,padX=0,padY=0;
+const dotAt=t=>{const r=tpad.getBoundingClientRect();tdot.style.left=(t.clientX-r.left)+'px';tdot.style.top=(t.clientY-r.top)+'px';};
+tpad.addEventListener('touchstart',e=>{e.preventDefault();initAudio();input.touch=true;
+  for(const t of e.changedTouches)if(padId===null){padId=t.identifier;padX=t.clientX;padY=t.clientY;tpad.classList.add('active');dotAt(t);}},{passive:false});
+tpad.addEventListener('touchmove',e=>{e.preventDefault();for(const t of e.changedTouches)if(t.identifier===padId){
+  const dx=t.clientX-padX,dy=t.clientY-padY;padX=t.clientX;padY=t.clientY;const g=1.5+Math.min(1.8,Math.hypot(dx,dy)*0.09);
+  input.x=clamp(input.x+dx*g,4,W-4);input.y=clamp(input.y+dy*g,4,H-6);dotAt(t);}},{passive:false});
+const padEnd=e=>{for(const t of e.changedTouches)if(t.identifier===padId){padId=null;tpad.classList.remove('active');}};
+tpad.addEventListener('touchend',padEnd);tpad.addEventListener('touchcancel',padEnd);
+const TB={};
+function setBtn(id,p,label,cls){const b=TB[id]||(TB[id]={el:$(id),sp:$(id).querySelector('span')});
+  const pv=Math.round(clamp(p,0,100));if(b.p!==pv){b.p=pv;b.el.style.setProperty('--p',pv+'%');}
+  if(b.l!==label){b.l=label;b.sp.textContent=label;}
+  if(b.c!==cls){b.c=cls;b.el.classList.toggle('on',cls==='on');b.el.classList.toggle('off',cls==='off');}}
+function updateTouchUI(){
+  const want=touchMode&&state!=='menu',on=document.body.classList.contains('touchui');
+  if(want!==on)document.body.classList.toggle('touchui',want);
+  let top=1e9,res=0;
+  if(want){top=Math.min(tpad.getBoundingClientRect().top,$('touch').getBoundingClientRect().top);
+    if(innerHeight>innerWidth)res=Math.max(0,Math.round(innerHeight-top+10));}
+  if(res!==RESERVE){RESERVE=res;resize();input.y=Math.min(input.y,H-6);}
+  CTRL_TOP=RESERVE?1e9:top;
+  if(!want||!G)return;
+  const S=stats();
+  setBtn('tFire',G.heat*100,G.overheat?'过热':'',G.overheat?'off':input.fire?'on':'');
+  const cr=1-Math.max(0,G.cCd)/S.cCd;setBtn('tCannon',cr*100,'',cr>=1?'on':'');
+  setBtn('tMissile',G.mCount<S.mCap?G.mRegenT/S.mRegen*100:0,G.mCount+'/'+S.mCap,G.mCount>0?'':'off');
+  setBtn('tStrike',G.strike,G.strike>=100?'就绪':Math.floor(G.strike)+'%',G.strike>=100?'on':'');
+  setBtn('tNuke',0,G.nukes+'',G.nukes>0?'on':'off');
+}
 
 // ================================================================ loop
 addEventListener('resize',resize);
@@ -1609,6 +1670,7 @@ function frame(now){
   else if(state==='menu'||state==='shop'||state==='over'){G.time+=dt;updateParts(dt);}
   G.shake=Math.max(0,G.shake-dt*(10+G.shake*3));G.dmgFlash=Math.max(0,G.dmgFlash-dt*1.4);
   for(const t of G.tracers)t.life-=dt;G.tracers=G.tracers.filter(t=>t.life>0);
+  updateTouchUI();
   render(dt);
 }
 requestAnimationFrame(frame);
