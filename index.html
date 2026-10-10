@@ -325,7 +325,7 @@ function resize(){
   cvs.width=Math.round(W*DPR);cvs.height=Math.round(H*DPR);
   cx=W/2;hy=Math.round(H*(W<H?0.36:0.3));F=Math.min(H*1.45,W*1.15);
   shoreY=hy+CAM_H*F/SHORE_Z;seaEndY=hy+CAM_H*F/(SHORE_Z+4);
-  BOTTOM_Z=CAM_H*F/(H-hy);NEAR_Z=CAM_H*F/((H-hy)*0.86);
+  BOTTOM_Z=CAM_H*F/(H-hy);NEAR_Z=CAM_H*F/((H-hy)*(RESERVE>0?0.66:0.86));
   HK=clamp(Math.min(W,H)/760,0.68,1.15);
   if(PAL)buildBackground();buildForeground();
 }
@@ -1226,11 +1226,13 @@ function drawHUD(){
   for(const f of G.floaters){const [sx,sy]=P(f.x,f.y,f.z);ctx.globalAlpha=Math.min(1,(1.1-f.t)*3);
     txt(f.text,sx,sy-f.t*40,15*k,f.col,'center',NUMF,700);}
   ctx.globalAlpha=1;
+  const compact=RESERVE>0,narrow=W<640,alive=G.enemies.filter(e=>e.alive&&!e.passive).length,prog=1-(G.events.length/G.evTotal),cm=comboMult();
+  if(compact)drawCompactHUD(S,alive,prog,cm);
+  else{
   // top-left
   panel(pad,pad,220*k,74*k);
   txt(`WAVE ${G.wave} · ${PAL.name}`,pad+14*k,pad+22*k,12*k,'#ffb21f','left',NUMF,700);
   txt(G.score.toLocaleString(),pad+14*k,pad+58*k,34*k,'#fff','left',NUMF,700);
-  const cm=comboMult();
   if(G.combo>=2){const cw=150*k;panel(pad,pad+82*k,cw,30*k);txt(`连杀 ${G.combo}`,pad+12*k,pad+102*k,14*k,'#fff','left',UIF,700);
     txt(`×${cm.toFixed(1)}`,pad+cw-10*k,pad+103*k,17*k,cm>1?'#ffb21f':'#93a3b4','right',NUMF,700);
     bar(pad+12*k,pad+106*k,cw-24*k,2*k,G.comboT/2.2,'#ffb21f');}
@@ -1240,12 +1242,16 @@ function drawHUD(){
   else{txt('CREDITS',rx+14*k,pad+28*k,11*k,'#93a3b4','left',NUMF,700);txt('$'+G.credits.toLocaleString(),rx+rw-14*k,pad+31*k,24*k,'#ffb21f','right',NUMF,700);}
   drawRadar(rx,pad+52*k,rw,110*k);
   // top-center progress
-  const alive=G.enemies.filter(e=>e.alive&&!e.passive).length;
-  const prog=1-(G.events.length/G.evTotal);const narrow=W<640;const pw=narrow?W*0.5:Math.min(260*k,W*0.3),py0=narrow?pad+(G.combo>=2?124:84)*k:pad+6*k,pcx=narrow?pad+pw/2:cx;
+  const pw=narrow?W*0.5:Math.min(260*k,W*0.3),py0=narrow?pad+(G.combo>=2?124:84)*k:pad+6*k,pcx=narrow?pad+pw/2:cx;
   bar(pcx-pw/2,py0,pw,5*k,prog,'rgba(255,178,31,.85)');
   txt(`敌军 ${alive}`,narrow?pad:cx,py0+22*k,13*k,'#dfe7ef',narrow?'left':'center',UIF,600);
+  if(G.perkOrder.length){const by=narrow?py0+34*k:pad+(G.combo>=2?120:82)*k,bw=42*k,bh=20*k;
+    G.perkOrder.forEach((id,i)=>{const p=PERK[id],n=G.perks[id],x=pad+(i%5)*(bw+4*k),y=by+Math.floor(i/5)*(bh+4*k);
+      ctx.fillStyle='rgba(8,13,20,.7)';ctx.beginPath();ctx.roundRect(x,y,bw,bh,5);ctx.fill();ctx.strokeStyle=RARC[p.r];ctx.lineWidth=1.2;ctx.stroke();
+      txt(p.s+(n>1?n:''),x+bw/2,y+bh*0.7,11*k,RARC[p.r],'center',UIF,700);});}
+  }
   const boss=G.enemies.find(e=>e.boss&&e.alive);
-  if(boss){const bw=narrow?W-2*pad-20*k:Math.min(520*k,W*0.42),bx=cx-bw/2,by=narrow?pad+172*k:pad+46*k;
+  if(boss){const bw=narrow?W-2*pad-20*k:Math.min(520*k,W*0.42),bx=cx-bw/2,by=compact?10:narrow?pad+172*k:pad+46*k;
     panel(bx-10*k,by-6*k,bw+20*k,boss.charging>0?52*k:46*k);
     txt(`BOSS · ${boss.name}`,bx,by+12*k,13*k,'#ff8a5a','left',UIF,800);
     txt(boss.phase===1?`阶段 1 · 摧毁主炮与导弹井（剩 ${boss.parts.filter(p=>p.alive).length}）`:'阶段 2 · 护盾瓦解，集火舰岛',bx+bw,by+12*k,11*k,'#c9d4df','right',UIF,700);
@@ -1253,19 +1259,15 @@ function drawHUD(){
     bar(bx,by+20*k,bw,10*k,cur/mx,boss.invuln?'#ff8a5a':'#ff4d3a');
     if(boss.invuln)txt('护盾',bx+bw-4*k,by+29*k,9*k,'#5fd0ff','right',UIF,800);
     if(boss.charging>0){bar(bx,by+35*k,bw,4*k,1-boss.charging/3.2,'#5fd0ff');txt('电磁炮充能',bx,by+46*k,10*k,'#5fd0ff','left',UIF,800);}}
-  if(G.perkOrder.length){const by=narrow?py0+34*k:pad+(G.combo>=2?120:82)*k,bw=42*k,bh=20*k;
-    G.perkOrder.forEach((id,i)=>{const p=PERK[id],n=G.perks[id],x=pad+(i%5)*(bw+4*k),y=by+Math.floor(i/5)*(bh+4*k);
-      ctx.fillStyle='rgba(8,13,20,.7)';ctx.beginPath();ctx.roundRect(x,y,bw,bh,5);ctx.fill();ctx.strokeStyle=RARC[p.r];ctx.lineWidth=1.2;ctx.stroke();
-      txt(p.s+(n>1?n:''),x+bw/2,y+bh*0.7,11*k,RARC[p.r],'center',UIF,700);});}
   for(const c of G.crates){const [sx,sy,s]=P(c.x,c.y,c.z),top=sy-(c.landed?1.8:6.6)*s-8;
     txt(c.end?'波次补给':'补给',sx,top,12*k,'#7fe08a','center',UIF,800);}
   // armor bottom-left
   const tui=document.body.classList.contains('touchui'),bot=Math.min(H,CTRL_TOP)-(CTRL_TOP<H?8:pad);
-  const aw=Math.min(280*k,W*0.36),ay=bot-58*k;panel(pad,ay,aw,58*k);
+  if(!compact){const aw=Math.min(280*k,W*0.36),ay=bot-58*k;panel(pad,ay,aw,58*k);
   txt('装甲',pad+14*k,ay+22*k,13*k,'#c9d4df','left',UIF,700);
   const hpR=G.hp/G.maxHp;txt(`${Math.ceil(G.hp)} / ${G.maxHp}`,pad+aw-14*k,ay+22*k,16*k,hpR<0.3?'#ff5a4a':'#fff','right',NUMF,700);
   bar(pad+14*k,ay+32*k,aw-28*k,12*k,hpR,hpR>0.5?'#4fd27f':hpR>0.25?'#ffcf4a':'#ff4d4d');
-  if(S.shieldMax>0){bar(pad+14*k,ay+47*k,aw-28*k,4*k,G.shield/S.shieldMax,'#5fd0ff');txt(`护盾 ${Math.floor(G.shield)}`,pad+50*k,ay+22*k,11*k,'#5fd0ff','left',UIF,700);}
+  if(S.shieldMax>0){bar(pad+14*k,ay+47*k,aw-28*k,4*k,G.shield/S.shieldMax,'#5fd0ff');txt(`护盾 ${Math.floor(G.shield)}`,pad+50*k,ay+22*k,11*k,'#5fd0ff','left',UIF,700);}}
   // weapons bottom-right
   const ww=Math.min(300*k,W*0.4),wh=166*k,wx=W-pad-ww,wy=H-pad-wh;if(!tui){panel(wx,wy,ww,wh);
   const row=(i,label,key,draw)=>{const y=wy+14*k+i*30*k;txt(label,wx+14*k,y+12*k,13*k,'#dfe7ef','left',UIF,700);
@@ -1306,7 +1308,7 @@ function drawHUD(){
     ctx.fillStyle='rgba(30,6,6,.6)';ctx.beginPath();ctx.roundRect(cx-ww2/2,y-24*k,ww2,36*k,8);ctx.fill();
     ctx.strokeStyle=w.col;ctx.lineWidth=1.5;ctx.stroke();txt('⚠ '+w.text,cx,y,18*k,w.col,'center',UIF,800);}}
   if(G.wave===1&&G.waveTime<12&&state==='play'){ctx.globalAlpha=Math.min(1,(12-G.waveTime)/2);
-    txt(tui?'用触摸板移动准星 · 按住「射击」开火':'按住左键机枪扫射 · 右键/Shift 高爆机炮 · 空格 导弹 · Q 空袭 · N 核弹',cx,bot-80*k,14*k,'#fff','center',UIF,600);ctx.globalAlpha=1;}
+    txt(tui?'用触摸板移动准星 · 按住「射击」开火':'按住左键机枪扫射 · 右键/Shift 高爆机炮 · 空格 导弹 · Q 空袭 · N 核弹',cx,compact?hy+(shoreY-hy)*0.55:bot-80*k,14*k,'#fff','center',UIF,600);ctx.globalAlpha=1;}
   // damage vignette
   const low=G.hp/G.maxHp<0.3?0.25+0.15*Math.sin(G.time*6):0;const dv=Math.max(G.dmgFlash,low);
   if(G.shieldHit>0){const g=ctx.createRadialGradient(cx,H/2,Math.min(W,H)*0.3,cx,H/2,Math.max(W,H)*0.75);
@@ -1314,6 +1316,28 @@ function drawHUD(){
   if(dv>0.01){const g=ctx.createRadialGradient(cx,H/2,Math.min(W,H)*0.3,cx,H/2,Math.max(W,H)*0.75);
     g.addColorStop(0,'rgba(255,0,0,0)');g.addColorStop(1,`rgba(200,10,10,${Math.min(0.75,dv)})`);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);}
   if(state==='dying'){ctx.fillStyle=`rgba(0,0,0,${Math.min(0.6,G.overT*0.3)})`;ctx.fillRect(0,0,W,H);}
+}
+function drawCompactHUD(S,alive,prog,cm){
+  // portrait touch layout: everything sits beside the turret at the bottom so the sky and sea stay clear
+  const p=10,LW=Math.min(W*0.4,170),RW=Math.min(W*0.36,150);let y=H-p;
+  const sh=S.shieldMax>0,ah=sh?40:36,hpR=G.hp/G.maxHp;y-=ah;panel(p,y,LW,ah);
+  txt('装甲',p+10,y+15,11,'#c9d4df','left',UIF,700);if(sh)txt(`护盾 ${Math.floor(G.shield)}`,p+40,y+15,10,'#5fd0ff','left',UIF,700);
+  txt(`${Math.ceil(G.hp)}/${G.maxHp}`,p+LW-10,y+15,13,hpR<0.3?'#ff5a4a':'#fff','right',NUMF,700);
+  bar(p+10,y+21,LW-20,8,hpR,hpR>0.5?'#4fd27f':hpR>0.25?'#ffcf4a':'#ff4d4d');if(sh)bar(p+10,y+33,LW-20,3,G.shield/S.shieldMax,'#5fd0ff');
+  y-=6+46;panel(p,y,LW,46);
+  txt(`WAVE ${G.wave} · ${PAL.name}`,p+10,y+15,10,'#ffb21f','left',NUMF,700);txt(`敌军 ${alive}`,p+LW-10,y+15,10,'#dfe7ef','right',UIF,600);
+  txt(G.score.toLocaleString(),p+10,y+35,20,'#fff','left',NUMF,700);bar(p+10,y+40,LW-20,2.5,prog,'rgba(255,178,31,.85)');
+  if(G.combo>=2){y-=6+22;panel(p,y,LW,22);txt(`连杀 ${G.combo}`,p+10,y+15,11,'#fff','left',UIF,700);
+    txt(`×${cm.toFixed(1)}`,p+LW-10,y+16,13,cm>1?'#ffb21f':'#93a3b4','right',NUMF,700);bar(p+10,y+19,LW-20,1.5,G.comboT/2.2,'#ffb21f');}
+  if(G.perkOrder.length){const bw=32,bh=16,g=3,per=Math.max(1,Math.floor((LW+g)/(bw+g))),rows=Math.ceil(G.perkOrder.length/per);
+    y-=6+rows*(bh+g)-g;
+    G.perkOrder.forEach((id,i)=>{const pk=PERK[id],n=G.perks[id],x=p+(i%per)*(bw+g),yy=y+Math.floor(i/per)*(bh+g);
+      ctx.fillStyle='rgba(8,13,20,.72)';ctx.beginPath();ctx.roundRect(x,yy,bw,bh,4);ctx.fill();ctx.strokeStyle=RARC[pk.r];ctx.lineWidth=1;ctx.stroke();
+      txt(pk.s+(n>1?n:''),x+bw/2,yy+bh*0.72,9.5,RARC[pk.r],'center',UIF,700);});}
+  const rx=W-p-RW;let ry=H-p-74;drawRadar(rx,ry,RW,74);
+  ry-=6+28;panel(rx,ry,RW,28);
+  if(G.mode==='rogue'){txt('ROGUE',rx+10,ry+18,9,'#cdb0ff','left',NUMF,700);txt(`强化 ${G.perkOrder.length} · 刷新 ${G.rerolls}`,rx+RW-10,ry+18,11,'#fff','right',UIF,700);}
+  else{txt('CREDITS',rx+10,ry+18,9,'#93a3b4','left',NUMF,700);txt('$'+G.credits.toLocaleString(),rx+RW-10,ry+20,16,'#ffb21f','right',NUMF,700);}
 }
 function drawRadar(x,y,w,h){
   panel(x,y,w,h);const ox=x+w/2,oy=y+h-8,R=h-18,ang=1.0;
