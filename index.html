@@ -395,8 +395,8 @@ function makeState(){
 function stats(){const u=G.up,p=id=>G.perks[id]||0;return{
   mgDmg:(1+0.25*u.mgDmg)*(1+0.2*p('mgdmg')),mgRate:17*(1+0.18*p('rate')),
   heatPer:p('overdrive')?0:0.019/(1+0.3*u.mgCool)*Math.pow(0.75,p('coolant')),cool:0.55*(1+0.3*u.mgCool),
-  cDmg:16*(1+0.2*u.cannon)*(1+0.25*p('cdmg')),cCd:0.72*Math.pow(0.88,u.cannon)*Math.pow(0.85,p('autoload')),cR:4.6*(1+0.1*u.cannon),
-  mCap:3+u.missile+p('msl'),mRegen:7.5*Math.pow(0.85,u.missile+p('msl')),mDmg:75*(1+0.3*p('warhead')),ciws:Math.min(3,u.ciws+p('ciws')),
+  cDmg:16*(1+0.2*u.cannon)*(1+0.25*p('cdmg'))*(G.wp||1),cCd:0.72*Math.pow(0.88,u.cannon)*Math.pow(0.85,p('autoload')),cR:4.6*(1+0.1*u.cannon),
+  mCap:3+u.missile+p('msl'),mRegen:7.5*Math.pow(0.85,u.missile+p('msl')),mDmg:75*(1+0.3*p('warhead'))*(G.wp||1),ciws:Math.min(3,u.ciws+p('ciws')),
   split:p('split'),crit:0.12*p('crit'),ap:Math.pow(0.7,p('ap')),exr:0.1*p('exround'),shieldMax:25*p('shield')};}
 function setPalette(i){PAL=PALS[i%PALS.length];buildBackground();
   G.clouds=[];const n=PAL.rain?11:7;for(let k=0;k<n;k++)G.clouds.push({x:Math.random(),y:rand(0.05,0.8),w:rand(0.08,0.2),sp:rand(0.004,0.012)*(PAL.rain?1.6:1),seed:Math.random()*100});
@@ -408,7 +408,8 @@ function newGame(mode){G=makeState();G.mode=mode||'classic';state='play';
 function startWave(n){
   G.wave=n;const pl=Object.values(G.perks).reduce((a,b)=>a+b,0);
   const early=Math.min(n,10)-1,late=Math.max(0,n-10);
-  G.dHp=Math.pow(1.11,early)*Math.pow(1.07,late)*(G.mode==='rogue'?1+0.025*pl:1);G.dF=1+early*0.07+late*0.04;G.dD=1+early*0.08+late*0.05;G.eliteDrops=0;
+  const ws=Math.pow(1.11,early)*Math.pow(1.07,late);G.wp=1+(ws-1)*0.75;
+  G.dHp=ws*(G.mode==='rogue'?1+0.025*pl:1);G.dF=1+early*0.07+late*0.04;G.dD=1+early*0.08+late*0.05;G.eliteDrops=0;
   setPalette(n%10===0?3:n-1);
   G.enemies=[];G.hostiles=[];G.shells=[];G.missiles=[];G.delayed=[];G.friendly=[];G.decals=[];G.parts=[];G.floaters=[];G.tracers=[];G.fires=[];G.nuke=null;G.flash=0;
   G.intermission=false;G.nextWaveT=0;if(G.perks.carpet)G.strike=100;
@@ -506,7 +507,7 @@ function killEnemy(e){
   const pts=Math.round(d.score*comboMult()*(e.elite?2:1));G.score+=pts;G.waveScore+=pts;G.credits+=d.cr;G.kills++;G.waveKills++;
   G.strike=Math.min(100,G.strike+d.score/22*(1+0.5*(G.perks.striker||0)));
   if(G.perks.leech)G.hp=Math.min(G.maxHp,G.hp+0.6*G.perks.leech);
-  if(G.perks.chain&&e.type!=='infantry'&&e.type!=='drone'){const n=G.perks.chain;G.delayed.push({t:0.12,fn:()=>explode(e.x,e.y+1,e.z,6+e.w*0.25,25*n,{fx:2})});}
+  if(G.perks.chain&&e.type!=='infantry'&&e.type!=='drone'){const n=G.perks.chain;G.delayed.push({t:0.12,fn:()=>explode(e.x,e.y+1,e.z,6+e.w*0.25,25*n*(G.wp||1),{fx:2})});}
   if(e.elite&&G.eliteDrops<2&&Math.random()<(G.eliteDrops===0?1:0.5)&&++G.eliteDrops)G.crates.push({crate:1,x:e.x,y:e.air?e.y+1:0,z:Math.max(NEAR_Z+3,e.z),t:1,hp:3,boost:2,end:false,landed:false});
   floater(e.x,e.y+e.h+0.6,e.z,'+'+pts);
   e.dieT=d.dieTime||0;d.kill&&d.kill(e);
@@ -965,7 +966,7 @@ function callStrike(){
   warn('空袭已就位','#7fe08a');sfx.jet();
   for(const fx of [-9,9])G.friendly.push({x:fx,y:24,z:2,vz:150});
   const reach=(z-2)/150,xm=xMax(z)*0.9,nb=G.perks.carpet?18:9;
-  for(let i=0;i<nb;i++)G.delayed.push({t:reach+0.15+i*0.08*9/nb,fn:()=>explode(lerp(-xm,xm,i/(nb-1))+rand(-2,2),0,z+rand(-4,4)+(G.perks.carpet?(i%2?6:-6):0),8,95,{pierce:true,fx:3.2,crater:0.7})});
+  for(let i=0;i<nb;i++)G.delayed.push({t:reach+0.15+i*0.08*9/nb,fn:()=>explode(lerp(-xm,xm,i/(nb-1))+rand(-2,2),0,z+rand(-4,4)+(G.perks.carpet?(i%2?6:-6):0),8,95*(G.wp||1),{pierce:true,fx:3.2,crater:0.7})});
 }
 function gameOver(){
   state='dying';G.overT=0;G.timeScale=0.35;sfx.hurt();
@@ -1028,7 +1029,9 @@ function updateMissile(m,dt){
   const step=sp*dt+1.2;
   const hit=m.tgt?distToEnemy(m.tgt,m.x,m.y,m.z)<step:(L<step||m.y<=0);
   if(hit||m.t>7){m.done=true;
-    if(m.mini){explode(m.x,Math.max(0,m.y),m.z,4,30,{pierce:true,fx:1.4});return;}
+    const big=m.tgt&&(m.tgt.boss||m.tgt.parent);
+    if(hit&&m.tgt&&m.tgt.alive)damageEnemy(m.tgt,m.tgt.maxHp*(big?0.03:0.10)*(m.mini?0.4:1));
+    if(m.mini){explode(m.x,Math.max(0,m.y),m.z,4,30*(G.wp||1),{pierce:true,fx:1.4});return;}
     explode(m.x,Math.max(0,m.y),m.z,6,stats().mDmg,{pierce:true,fx:2.6});
     if(G.perks.swarm){const ts=G.enemies.filter(e=>e.alive&&!e.ghost&&e!==m.tgt).sort((a,b)=>Math.hypot(a.x-m.x,a.z-m.z)-Math.hypot(b.x-m.x,b.z-m.z));
       for(let i=0;i<3;i++){const t=ts[i%Math.max(1,ts.length)]||null;
