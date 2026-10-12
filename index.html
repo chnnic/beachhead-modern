@@ -1529,13 +1529,18 @@ function openCrate(c){
   sfx.crate();G.pickQ.push({boost,end:c.end});
   if(state==='play')showPick();
 }
-function rollChoices(boost){
+function rollChoices(boost,reroll){
   const out=[];
   const avail=r=>PERKS.filter(p=>p.r===r&&(G.perks[p.id]||0)<p.max&&!out.includes(p)&&(!p.ok||p.ok()));
   for(let i=0;i<3;i++){const x=Math.random();let r=x<0.02+0.04*boost?3:x<0.12+0.08*boost?2:x<0.38+0.1*boost?1:0;
     let pool=avail(r);for(let q=r;!pool.length&&q>0;)pool=avail(--q);for(let q=r;!pool.length&&q<3;)pool=avail(++q);
     if(!pool.length)pool=PERKS.filter(p=>p.instant&&!out.includes(p));
     if(pool.length)out.push(pool[randi(0,pool.length-1)]);}
+  // weapon guarantee: EMP / rocket salvo show up at least every third supply drop until both are maxed
+  const wpn=PERKS.filter(p=>(p.id==='emp'||p.id==='mlrs')&&(G.perks[p.id]||0)<p.max);
+  const has=()=>out.some(p=>p.id==='emp'||p.id==='mlrs');
+  if(wpn.length&&!has()&&(G.wpPity||0)>=2&&out.length)out[out.length-1]=wpn[randi(0,wpn.length-1)];
+  if(!reroll)G.wpPity=has()?0:(G.wpPity||0)+1;
   return out;
 }
 function showPick(){
@@ -1549,7 +1554,7 @@ function renderPick(){
   $('picks').querySelectorAll('.pk').forEach(b=>b.onclick=()=>choose(+b.dataset.i));
   $('rerollBtn').textContent=`刷新 (${G.rerolls})`;$('rerollBtn').disabled=G.rerolls<=0;
 }
-function reroll(){if(state!=='pick')return;if(G.rerolls<=0){sfx.deny();return;}G.rerolls--;G.choices=rollChoices(G.pickQ[0].boost);sfx.buy();renderPick();}
+function reroll(){if(state!=='pick')return;if(G.rerolls<=0){sfx.deny();return;}G.rerolls--;G.choices=rollChoices(G.pickQ[0].boost,true);sfx.buy();renderPick();}
 function applyPerk(p){
   if(p.id==='repair'){G.hp=Math.min(G.maxHp,G.hp+50);}
   else if(p.id==='nukepk'){G.nukes=Math.min(2,G.nukes+1);}
