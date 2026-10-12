@@ -962,7 +962,7 @@ function fireCannon(S){
 }
 function fireMissile(){
   if(state!=='play')return;
-  if(G.mCount<=0){sfx.empty();return;}
+  if(G.mCount<=0){sfx.empty();warn('导弹装填中','#ffcf4a');return;}
   G.mCount--;sfx.missile();G.mSide=-G.mSide;
   let pt=null;if(!G.lock){const g=groundPt(input.x,input.y);pt=g&&g.z<FAR_Z?g:unproj(input.x,input.y,220);}
   const mk=side=>G.missiles.push({x:side*4,y:CAM_H-4,z:2,vx:side*5,vy:16,vz:22,tgt:G.lock,pt,t:0});
@@ -970,7 +970,7 @@ function fireMissile(){
 }
 function callStrike(){
   if(state!=='play')return;
-  if(G.strike<100){sfx.deny();return;}
+  if(G.strike<100){sfx.deny();warn(`空袭充能中 · ${Math.floor(G.strike)}%（击杀敌人充能）`,'#7fe08a');return;}
   G.strike=0;
   const g=groundPt(input.x,input.y);const z=clamp(g?g.z:150,NEAR_Z+4,240);
   warn('空袭已就位','#7fe08a');sfx.jet();
@@ -1392,11 +1392,11 @@ function drawCrosshair(S){
 
 // ================================================================ special weapons: EMP + rocket salvo
 const empLevel=()=>Math.max(G.up.emp||0,G.perks.emp||0),mlrsLevel=()=>Math.max(G.up.mlrs||0,G.perks.mlrs||0);
-const EMP_CD=l=>l>=2?28:40,MLRS_CD=l=>l>=2?18:25;
+const EMP_CD=l=>l>=2?22:30,MLRS_CD=l=>l>=2?18:25;
 function fireEMP(){
   if(state!=='play')return;const l=empLevel();
   if(!l){sfx.deny();warn('EMP 未解锁','#ffcf4a');return;}
-  if(G.empCd>0){sfx.deny();return;}
+  if(G.empCd>0){sfx.deny();warn(`EMP 冷却中 · 还需 ${Math.ceil(G.empCd)} 秒`,'#5fd0ff');return;}
   G.empCd=EMP_CD(l);const dur=l>=2?6:4;
   G.emp={t:0};G.flashB=0.7;G.shake=Math.max(G.shake,6);sfx.emp();
   for(const h of G.hostiles)if(!h.dead)killHostile(h);
@@ -1409,7 +1409,7 @@ function fireEMP(){
 function fireMLRS(){
   if(state!=='play')return;const l=mlrsLevel();
   if(!l){sfx.deny();warn('多管火箭炮未解锁','#ffcf4a');return;}
-  if(G.mlrsCd>0){sfx.deny();return;}
+  if(G.mlrsCd>0){sfx.deny();warn(`火箭炮装填中 · 还需 ${Math.ceil(G.mlrsCd)} 秒`,'#ffb050');return;}
   G.mlrsCd=MLRS_CD(l);
   const a=aim(),g=groundPt(a.x,a.y),z=clamp(g?g.z:160,NEAR_Z+5,320),x=g?g.x:(a.x-cx)*z/F;
   const n=l>=2?16:12,sx=Math.max(8,z*0.12),sz=Math.max(6,z*0.09);
@@ -1629,7 +1629,7 @@ const UPS=[
   {id:'armor',name:'复合装甲',tag:'防御',desc:'最大装甲 +25，并修复 25',max:5,cost:l=>180+l*140},
   {id:'repair',name:'紧急维修',tag:'维修',desc:'立即修复 40 点装甲',max:99,cost:()=>90,repeat:true},
   {id:'nuke',name:'战术核弹',tag:'特种',desc:'按 N 发射，清除场上全部敌人',max:99,cost:()=>1500,repeat:true},
-  {id:'emp',name:'EMP 电磁脉冲',tag:'特种',desc:'按 R：击落所有无人机与来袭导弹，战机坠毁，载具瘫痪 4 秒。2 级：冷却 40→28 秒，瘫痪 6 秒',max:2,cost:l=>[900,1400][l]},
+  {id:'emp',name:'EMP 电磁脉冲',tag:'特种',desc:'按 R：击落所有无人机与来袭导弹，战机坠毁，载具瘫痪 4 秒。2 级：冷却 30→22 秒，瘫痪 6 秒',max:2,cost:l=>[900,1400][l]},
   {id:'mlrs',name:'多管火箭炮',tag:'特种',desc:'按 F：向准星区域齐射 12 枚火箭。2 级：16 枚，冷却 25→18 秒',max:2,cost:l=>[800,1300][l]},
 ];
 function show(id){['menu','shop','pause','over','pick'].forEach(k=>$(k).classList.toggle('show',k===id));}
@@ -1718,7 +1718,9 @@ cvs.addEventListener('touchend',tend);cvs.addEventListener('touchcancel',tend);
 const tb=(id,down,up)=>{const b=$(id);
   b.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();initAudio();input.touch=true;b.classList.add('pressed');down();},{passive:false});
   const end=e=>{e.preventDefault();e.stopPropagation();b.classList.remove('pressed');up&&up();};
-  b.addEventListener('touchend',end,{passive:false});b.addEventListener('touchcancel',end,{passive:false});};
+  b.addEventListener('touchend',end,{passive:false});b.addEventListener('touchcancel',end,{passive:false});
+  b.addEventListener('mousedown',e=>{e.preventDefault();initAudio();b.classList.add('pressed');down();});
+  const mup=()=>{if(!b.classList.contains('pressed'))return;b.classList.remove('pressed');up&&up();};b.addEventListener('mouseup',mup);b.addEventListener('mouseleave',mup);};
 tb('tFire',()=>input.fire=true,()=>input.fire=false);tb('tEmp',fireEMP);tb('tMlrs',fireMLRS);
 tb('tCannon',()=>input.alt=true,()=>input.alt=false);tb('tMissile',fireMissile);tb('tStrike',callStrike);tb('tNuke',launchNuke);
 tb('tpause',()=>state==='play'?pause():resume());
