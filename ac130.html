@@ -493,7 +493,7 @@ function toggleMute(){muted=!muted;store.set('ac130_mute',muted);if(AU.m)AU.m.ga
 // ================= update =================
 function update(dt){
   const g=G;g.time+=dt;sndBudget=Math.max(0,sndBudget-dt*20);
-  V.rot+=dt*TAU/110;V.c=Math.cos(V.rot);V.s=Math.sin(V.rot);
+  V.rot+=dt*TAU/220;V.c=Math.cos(V.rot);V.s=Math.sin(V.rot);
   // camera input
   if(g.demo){const lp=leadPos();cam.x=lerp(cam.x,lp.x+80,dt*.6);cam.y=lerp(cam.y,lp.y-40,dt*.6);aim.x=aim.y=0;}
   else if(!g.end){
