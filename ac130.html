@@ -38,6 +38,10 @@ p.lead b{color:#fff}
 kbd{font-family:var(--num);font-weight:700;font-size:13px;min-width:30px;text-align:center;padding:3px 8px;border-radius:6px;
   background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-bottom-width:2px;color:#fff;white-space:nowrap}
 .tkeys{display:none}
+.pkeys{margin:14px 0 4px;font-size:13px}
+.pkeys .zonly{display:none}
+body.zmode .pkeys .zonly{display:flex}
+body.zmode .pkeys .nozonly{display:none}
 body.touch .tkeys{display:grid}
 body.touch .dkeys{display:none}
 .btn{font-family:var(--ui);font-weight:800;font-size:17px;letter-spacing:.14em;border:0;border-radius:10px;padding:14px 28px;cursor:pointer;
@@ -48,6 +52,7 @@ body.touch .dkeys{display:none}
 .btn.toggle{font-size:14px;padding:9px 14px;letter-spacing:.06em;font-weight:700}
 .btn.toggle.offx{opacity:.6}
 .btn.zombie{background:linear-gradient(180deg,#c9f29a,#7fc24a);box-shadow:0 6px 22px rgba(140,210,90,.25),inset 0 1px 0 #fff}
+.btn.zday{background:linear-gradient(180deg,#f3f0a0,#b9d25a)}
 .btn.ghost{background:rgba(255,255,255,.08);color:var(--text);box-shadow:none;border:1px solid var(--line)}
 .row{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
 .btns{display:flex;gap:10px;flex-wrap:wrap}
@@ -127,7 +132,7 @@ body.touchui #tpause{display:block}
       <div><kbd>燃烧弹</kbd>丧尸围城专用，烧出一片火海</div>
     </div>
     <div class="row">
-      <div class="btns"><button class="btn" id="startBtn">夜间任务 ▶</button><button class="btn day" id="dayBtn">白天任务 ☀</button><button class="btn zombie" id="zBtn">丧尸围城 ☣</button></div>
+      <div class="btns"><button class="btn" id="startBtn">夜间任务 ▶</button><button class="btn day" id="dayBtn">白天任务 ☀</button><button class="btn zombie" id="zBtn">丧尸围城 ☣</button><button class="btn zombie zday" id="zDayBtn">丧尸围城 · 白天 ☀</button></div>
       <div class="hs">最高得分 <b id="best">0</b><br>丧尸围城 <b id="bestz">0</b> 波</div>
     </div>
     <div class="btns" style="margin-top:16px"><button class="btn ghost toggle droneBtn" id="droneBtn">飞机嗡鸣声：开</button></div>
@@ -139,6 +144,26 @@ body.touchui #tpause{display:block}
     <div class="eyebrow">Spectre · 待命</div>
     <h2>已暂停</h2>
     <p class="reason" id="pauseInfo"></p>
+    <div class="keys dkeys pkeys">
+      <div><kbd>左键</kbd><kbd>空格</kbd>开火</div>
+      <div><kbd>右键</kbd><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>滚轮</kbd>换炮</div>
+      <div class="zonly"><kbd>4</kbd>燃烧弹</div>
+      <div class="nozonly"><kbd>F</kbd>投放干扰弹</div>
+      <div><kbd>按住右键拖动</kbd><kbd>WASD</kbd>平移镜头</div>
+      <div><kbd>C</kbd>镜头回到友军</div>
+      <div><kbd>T</kbd>切换传感器</div>
+      <div><kbd>P</kbd><kbd>Esc</kbd>暂停 / 继续</div>
+      <div><kbd>M</kbd>静音</div>
+      <div><kbd>N</kbd>飞机嗡鸣声</div>
+    </div>
+    <div class="keys tkeys pkeys">
+      <div><kbd>拖动屏幕</kbd>移动瞄准</div>
+      <div><kbd>开火</kbd>按住持续射击</div>
+      <div><kbd>105/40/25</kbd>切换火炮</div>
+      <div class="zonly"><kbd>燃烧弹</kbd>点燃一片地面</div>
+      <div class="nozonly"><kbd>干扰弹</kbd>躲避防空导弹</div>
+      <div><kbd>传感器</kbd>彩色 / 白热 / 黑热</div>
+    </div>
     <div class="btns" style="margin-top:18px">
       <button class="btn" id="resumeBtn">继续任务</button>
       <button class="btn ghost" id="quitBtn">返回基地</button>
@@ -400,14 +425,14 @@ const aim={x:0,y:0};let touchMode=false;
 
 function newG(level,score,demo,day,mode){
   mode=mode||'m';gen(level,day,mode==='z');
-  G={level,score,score0:score,kills:0,vk:0,bk:0,ff:0,fdead:0,shots:0,w:0,cd:[0,0,0],heat:0,over:false,swT:0,stat:.8,bloom:0,shake:0,
+  G={level,score,score0:score,kills:0,vk:0,bk:0,ff:0,fdead:0,shots:0,w:0,cd:[0,0,0,0],heat:0,over:false,swT:0,stat:.8,bloom:0,shake:0,
     planeHp:3,flareCd:0,mode,wave:0,wq:0,wTot:1,brQ:0,breakT:null,ffMax:mode==='z'?3:2,day:!!day,sens:day?0:bhot?2:1,missile:null,time:0,phase:'intro',introT:demo?1:5,sq:{s:0,halt:false,calm:0},spT:2,vT:24,bT:60,aT:36,amb:{},rc:{},radioL:[],
     msg:null,heli:null,end:false,endT:0,demo:!!demo,demoT:2,danger:false,ffFlash:0,startT:performance.now()};
   if(mode==='z'){
     for(let i=0;i<6;i++){const a=i/6*TAU+.3,u=mkUnit('f','inf',LZ.x+Math.cos(a)*15,LZ.y+Math.sin(a)*15);u.hx=u.x;u.hy=u.y;U.push(u);}
     cam.x=LZ.x;cam.y=LZ.y;V.zc=1;
     radio('这里是幸存者营地，丧尸正从四面八方涌过来！','地面');radio('收到，Spectre 就位，燃烧弹已装填。烧掉它们。','火控');
-    msg('丧尸围城 · 守住幸存者营地',3.5);return;}
+    msg(`丧尸围城 · ${day?'白天':'夜间'} · 守住幸存者营地`,3.5);return;}
   for(let i=0;i<4;i++){const p=lineAt(PATH,-i*9+30);U.push(mkUnit('f','inf',p.x+p.nx*(i%2?7:-7),p.y+p.ny*(i%2?7:-7)));}
   const p=lineAt(PATH,140);cam.x=p.x;cam.y=p.y;V.zc=1;
   spawnGroup(4+level,true);spawnGroup(3+level,false);
@@ -535,7 +560,7 @@ function update(dt){
   V.x=cam.x+Math.sin(g.time*.63)*2.2+Math.sin(g.time*1.7)*.8;V.y=cam.y+Math.cos(g.time*.51)*2.2;
   V.ox=W/2+rnd(-1,1)*g.shake;V.oy=H/2+rnd(-1,1)*g.shake;
   g.bloom=Math.max(0,g.bloom-dt*1.6);g.stat=Math.max(0,g.stat-dt*1.8);g.swT=Math.max(0,g.swT-dt);g.ffFlash=Math.max(0,g.ffFlash-dt);
-  for(let i=0;i<3;i++)g.cd[i]=Math.max(0,g.cd[i]-dt);
+  for(let i=0;i<g.cd.length;i++)g.cd[i]=Math.max(0,g.cd[i]-dt);
   const firing=input.mfire||input.kfire||input.tfire;
   if(!(firing&&g.w===2))g.heat=Math.max(0,g.heat-dt*.34);if(g.over&&g.heat<.35)g.over=false;
   g.flareCd=Math.max(0,g.flareCd-dt);
@@ -968,9 +993,9 @@ function showEnd(){state='end';document.body.classList.remove('playing');
   $('endStats').innerHTML=st.map(s=>`<div class="stat${s[2]?' big':''}"><span>${s[0]}</span><b>${s[1]}</b></div>`).join('');
   $('nextBtn').style.display=g.win?'':'none';$('retryBtn').textContent=g.win?'重玩本关':'重试本关';endEl.classList.add('show');}
 document.querySelectorAll('.droneBtn').forEach(b=>b.onclick=toggleDrone);syncDroneUI();
-$('startBtn').onclick=()=>startGame(1);$('dayBtn').onclick=()=>startGame(1,0,true);$('zBtn').onclick=()=>startGame(1,0,false,'z');
+$('startBtn').onclick=()=>startGame(1);$('dayBtn').onclick=()=>startGame(1,0,true);$('zBtn').onclick=()=>startGame(1,0,false,'z');$('zDayBtn').onclick=()=>startGame(1,0,true,'z');
 $('resumeBtn').onclick=resume;$('quitBtn').onclick=toMenu;$('homeBtn').onclick=toMenu;
-$('nextBtn').onclick=()=>startGame(G.level+1,G.score,G.day);$('retryBtn').onclick=()=>G.mode==='z'?startGame(1,0,false,'z'):startGame(G.level,G.score0,G.day);
+$('nextBtn').onclick=()=>startGame(G.level+1,G.score,G.day);$('retryBtn').onclick=()=>G.mode==='z'?startGame(1,0,G.day,'z'):startGame(G.level,G.score0,G.day);
 
 // ================= input =================
 addEventListener('keydown',e=>{
