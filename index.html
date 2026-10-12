@@ -1326,7 +1326,7 @@ function drawHUD(){
       ctx.fillStyle=g;ctx.fillRect(0,y-46*k,W,78*k);
       txt(b.title,cx,y,34*k,'#fff','center',UIF,800);txt(b.sub,cx,y+24*k,14*k,'#ffcf6a','center',UIF,600);ctx.globalAlpha=1;}}
   if(G.warn){const w=G.warn;if(Math.sin(w.t*14)>-0.4||w.t>1.2){
-    const y=H*0.36;ctx.font=`800 ${18*k}px ${UIF}`;const ww2=ctx.measureText(w.text).width+44*k;
+    const top=compact?(boss?72:12):narrow?(boss?pad+228*k:pad+172*k):(boss?pad+104*k:pad+40*k),y=top+24*k;ctx.font=`800 ${18*k}px ${UIF}`;const ww2=ctx.measureText(w.text).width+44*k;
     ctx.fillStyle='rgba(30,6,6,.6)';ctx.beginPath();ctx.roundRect(cx-ww2/2,y-24*k,ww2,36*k,8);ctx.fill();
     ctx.strokeStyle=w.col;ctx.lineWidth=1.5;ctx.stroke();txt('⚠ '+w.text,cx,y,18*k,w.col,'center',UIF,800);}}
   if(G.wave===1&&G.waveTime<12&&state==='play'){ctx.globalAlpha=Math.min(1,(12-G.waveTime)/2);
