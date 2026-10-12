@@ -100,12 +100,13 @@ body.touchui #tpause{display:block}
     <p class="lead">你是 AC-130 炮艇机的火控官，正盘旋在敌占村庄上空。透过热成像用 <b>105 / 40 / 25 毫米</b>火炮掩护地面小队一路推进到撤离点。
       身上<b>一闪一闪的红外频闪</b>就是友军——小心误伤。敌方单兵防空导弹来袭时立刻投放<b>干扰弹</b>。</p>
     <div class="keys dkeys">
-      <div><kbd>鼠标</kbd>移动瞄准（点击锁定）</div>
+      <div><kbd>鼠标</kbd>瞄准（准星跟随鼠标）</div>
       <div><kbd>左键</kbd><kbd>空格</kbd>开火</div>
       <div><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd>/<kbd>滚轮</kbd>切换火炮</div>
       <div><kbd>F</kbd>投放干扰弹</div>
       <div><kbd>T</kbd>切换传感器（白天可用彩色）</div>
-      <div><kbd>WASD</kbd>平移镜头</div>
+      <div><kbd>WASD</kbd><kbd>右键拖动</kbd>平移镜头</div>
+      <div><kbd>C</kbd>镜头回到友军</div>
       <div><kbd>P</kbd><kbd>Esc</kbd>暂停</div>
       <div><kbd>M</kbd>静音</div>
     </div>
@@ -373,7 +374,7 @@ const R_MOVE=['区域已肃清，继续前进。','我们继续推进。','安�
 
 // ================= game state =================
 let state='menu',G=null,bhot=store.get('ac130_bhot',false),best=store.get('ac130_best',0);
-const input={mfire:false,kfire:false,tfire:false,mx:0,my:0,mouseIn:false,locked:false,lockFail:0},K={};
+const input={mfire:false,kfire:false,tfire:false,mx:0,my:0,mouseIn:false,rdrag:false},K={};
 const aim={x:0,y:0};let touchMode=false;
 
 function newG(level,score,demo,day){
@@ -473,6 +474,7 @@ function tryFire(){
   SH.push({x:_x+Math.cos(a)*r,y:_y+Math.sin(a)*r,t:0,T:wp.fl*rnd(.95,1.05),w});
   G.cd[w]=wp.cd;G.shots++;SFX['f'+w]();G.shake+=w===0?3:w===1?1.1:.25;
 }
+function centerSquad(){let x=0,y=0,n=0;for(const f of U)if(f.side==='f'&&!f.dead){x+=f.x;y+=f.y;n++;}if(n){cam.x=x/n;cam.y=y/n;}}
 function setW(i){if(!G||i===G.w)return;G.w=i;G.swT=.22;G.stat=Math.max(G.stat,.55);SFX.swap();}
 function flare(){if(!G||G.end||G.flareCd>0)return;G.flareCd=9;SFX.flare();
   for(let i=0;i<18;i++)SF.push({x:W*rnd(.05,.95),y:H+rnd(0,40),vx:rnd(-160,160),vy:-rnd(260,520),life:0,max:rnd(1.4,2.2)});
@@ -490,10 +492,11 @@ function update(dt){
     const ks=Math.min(W,H)*.75*dt;let kx=0,ky=0;
     if(K.KeyA||K.ArrowLeft)kx-=ks;if(K.KeyD||K.ArrowRight)kx+=ks;if(K.KeyW||K.ArrowUp)ky-=ks;if(K.KeyS||K.ArrowDown)ky+=ks;
     if(kx||ky)pan(kx,ky);
-    if(!input.locked&&!touchMode&&input.mouseIn){
-      const ex=W*.44,ey=H*.44;aim.x=clamp(input.mx-W/2,-ex,ex);aim.y=clamp(input.my-H/2,-ey,ey);
-      const d=hyp(aim.x/W,aim.y/H)*2,dz=.42;if(d>dz){const f=(d-dz)/(1-dz)*Math.min(W,H)*1.4*dt/d;pan(aim.x/W*2*f,aim.y/H*2*f);}
-    }else if(input.locked||touchMode){aim.x=aim.y=0;}
+    if(touchMode){aim.x=aim.y=0;}
+    else{aim.x=clamp(input.mx-W/2,-W/2,W/2);aim.y=clamp(input.my-H/2,-H/2,H/2);
+      // camera only moves when the cursor sits in the thin band at the very edge of the screen
+      if(input.mouseIn&&!input.rdrag){const band=36,sp=Math.min(W,H)*.6*dt,ex=Math.abs(aim.x)-(W/2-band),ey=Math.abs(aim.y)-(H/2-band);
+        const px=ex>0?Math.sign(aim.x)*Math.min(1,ex/band):0,py=ey>0?Math.sign(aim.y)*Math.min(1,ey/band):0;if(px||py)pan(px*sp,py*sp);}}
   }
   g.zcT=WP[g.w].zoom;V.zc+=(g.zcT-V.zc)*Math.min(1,dt*7);V.z=V.base*V.zc;
   g.shake=Math.min(g.shake,26)*Math.pow(.02,dt);
@@ -851,21 +854,20 @@ function hud(){
       txt(g.msg.t,W/2,H*.38,W<520?20:26,'center',g.msg.bad?'rgba(255,120,100,1)':'#fff',700);ctx.globalAlpha=1;}else g.msg=null;}
   if(g.ffFlash>0){ctx.globalAlpha=Math.min(.35,g.ffFlash*.2);ctx.strokeStyle='#ff5040';ctx.lineWidth=10;ctx.strokeRect(5,5,W-10,H-10);ctx.globalAlpha=1;}
   if(g.time<6&&touchMode&&g.level===1)txt('拖动屏幕瞄准 · 右下角按住开火',W/2,H*.62,15,'center','rgba(255,255,255,.85)',600);
-  else if(g.time<6&&!touchMode&&!input.locked&&g.level===1)txt('点击画面锁定鼠标 · 移动鼠标转动镜头',W/2,H*.62,15,'center','rgba(255,255,255,.85)',600);
+  else if(g.time<7&&!touchMode&&g.level===1)txt('鼠标瞄准 · 右键拖动或 WASD 平移镜头 · C 回到友军',W/2,H*.62,15,'center','rgba(255,255,255,.85)',600);
 }
 
 // ================= flow =================
 const menuEl=$('menu'),pauseEl=$('pauseOv'),endEl=$('endOv');
 function startGame(level,score=0,day=false){initAudio();menuEl.classList.remove('show');endEl.classList.remove('show');pauseEl.classList.remove('show');
-  newG(level,score,false,day);state='play';document.body.classList.add('playing');if(!touchMode)tryLock();}
-function tryLock(){if(input.lockFail>=2||touchMode||input.locked)return;try{const r=cvs.requestPointerLock();if(r&&r.catch)r.catch(()=>input.lockFail++);}catch(e){input.lockFail++;}}
+  newG(level,score,false,day);state='play';document.body.classList.add('playing');}
 function pause(){if(state!=='play'||G.end)return;state='paused';input.mfire=input.kfire=input.tfire=false;
   $('pauseInfo').textContent=`第 ${G.level} 关 · 得分 ${G.score.toLocaleString()} · 击杀 ${G.kills}`;pauseEl.classList.add('show');
-  if(document.pointerLockElement)document.exitPointerLock();if(AU.c)AU.c.suspend();}
-function resume(){if(state!=='paused')return;state='play';pauseEl.classList.remove('show');if(AU.c)AU.c.resume();if(!touchMode)tryLock();last=performance.now();}
+  if(AU.c)AU.c.suspend();}
+function resume(){if(state!=='paused')return;state='play';pauseEl.classList.remove('show');if(AU.c)AU.c.resume();last=performance.now();}
 function toMenu(){state='menu';pauseEl.classList.remove('show');endEl.classList.remove('show');menuEl.classList.add('show');document.body.classList.remove('playing');
-  if(document.pointerLockElement)document.exitPointerLock();if(AU.c&&AU.c.state==='suspended')AU.c.resume();$('best').textContent=best.toLocaleString();newG(1,0,true);}
-function showEnd(){state='end';document.body.classList.remove('playing');if(document.pointerLockElement)document.exitPointerLock();
+  if(AU.c&&AU.c.state==='suspended')AU.c.resume();$('best').textContent=best.toLocaleString();newG(1,0,true);}
+function showEnd(){state='end';document.body.classList.remove('playing');
   const g=G,secs=(performance.now()-g.startT)/1000|0;
   $('endEye').textContent=g.win?'任务简报 · 成功':'任务简报 · 失败';$('endTitle').textContent=g.win?`第 ${g.level} 关 · 任务完成`:'任务失败';
   $('endTitle').className=g.win?'':'bad';$('endReason').textContent=g.reason;
@@ -884,26 +886,25 @@ addEventListener('keydown',e=>{
   if(state==='play'){switch(e.code){
     case 'Digit1':case 'Numpad1':setW(0);break;case 'Digit2':case 'Numpad2':setW(1);break;case 'Digit3':case 'Numpad3':setW(2);break;
     case 'KeyQ':setW((G.w+2)%3);break;case 'KeyE':case 'Tab':e.preventDefault();setW((G.w+1)%3);break;
-    case 'KeyF':flare();break;case 'KeyT':toggleThermal();break;case 'Space':input.kfire=true;e.preventDefault();break;
+    case 'KeyF':flare();break;case 'KeyC':centerSquad();break;case 'KeyT':toggleThermal();break;case 'Space':input.kfire=true;e.preventDefault();break;
     case 'KeyP':case 'Escape':pause();break;}}
   else if(state==='paused'&&(e.code==='KeyP'||e.code==='Escape'))resume();
   else if(state==='menu'&&e.code==='Enter')startGame(1);
   else if(state==='end'&&e.code==='Enter')(G.win?$('nextBtn'):$('retryBtn')).click();
 });
 addEventListener('keyup',e=>{K[e.code]=false;if(e.code==='Space')input.kfire=false;});
-addEventListener('blur',()=>{for(const k in K)K[k]=false;input.mfire=input.kfire=input.tfire=false;if(state==='play')pause();});
+addEventListener('blur',()=>{for(const k in K)K[k]=false;input.mfire=input.kfire=input.tfire=input.rdrag=false;if(state==='play')pause();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='play')pause();});
 cvs.addEventListener('mousedown',e=>{if(touchMode)return;initAudio();if(state!=='play')return;
-  if(e.button===0){input.mfire=true;tryLock();}else if(e.button===2)setW((G.w+1)%3);});
-addEventListener('mouseup',e=>{if(e.button===0)input.mfire=false;});
+  if(e.button===0)input.mfire=true;else if(e.button===2)input.rdrag=true;});
+addEventListener('mouseup',e=>{if(e.button===0)input.mfire=false;else if(e.button===2)input.rdrag=false;});
 cvs.addEventListener('contextmenu',e=>e.preventDefault());
 addEventListener('mousemove',e=>{if(touchMode)return;input.mouseIn=true;
-  if(input.locked){if(state==='play')pan(e.movementX*.9,e.movementY*.9);}else{input.mx=e.clientX;input.my=e.clientY;}});
+  // right-drag grabs the ground: the spot under the cursor follows the cursor
+  if(input.rdrag&&state==='play')pan(input.mx-e.clientX,input.my-e.clientY);
+  input.mx=e.clientX;input.my=e.clientY;});
 document.addEventListener('mouseleave',()=>{input.mouseIn=false;});
 let wheelT=0;cvs.addEventListener('wheel',e=>{e.preventDefault();if(state!=='play'||performance.now()-wheelT<140)return;wheelT=performance.now();setW((G.w+(e.deltaY>0?1:2))%3);},{passive:false});
-document.addEventListener('pointerlockchange',()=>{const was=input.locked;input.locked=document.pointerLockElement===cvs;
-  if(was&&!input.locked&&state==='play')pause();});
-document.addEventListener('pointerlockerror',()=>{input.lockFail++;});
 // touch
 function enableTouch(){if(touchMode)return;touchMode=true;document.body.classList.add('touch');input.mouseIn=false;aim.x=aim.y=0;}
 let padId=null,padX=0,padY=0;
