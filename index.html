@@ -1560,15 +1560,15 @@ function reroll(){if(state!=='pick')return;if(G.rerolls<=0){sfx.deny();return;}G
 function applyPerk(p){
   if(p.id==='repair'){G.hp=Math.min(G.maxHp,G.hp+50);}
   else if(p.id==='nukepk'){G.nukes=Math.min(2,G.nukes+1);}
-  else if(p.id==='emp'&&!G.perks.emp)warn('已解锁 EMP · 按 R 使用','#5fd0ff');
-  else if(p.id==='mlrs'&&!G.perks.mlrs)warn('已解锁多管火箭炮 · 按 F 使用','#ffb050');
   else{G.perks[p.id]=(G.perks[p.id]||0)+1;if(!G.perkOrder.includes(p.id))G.perkOrder.push(p.id);
     if(p.id==='plating'){G.maxHp+=30;G.hp=Math.min(G.maxHp,G.hp+30);}
     if(p.id==='shield')G.shield=Math.min(25*G.perks.shield,G.shield+25);
     if(p.id==='msl')G.mCount++;
     if(p.id==='carpet')G.strike=100;
     if(p.id==='overdrive'){G.heat=0;G.overheat=false;}}
-  warn(`获得强化：${p.name}`,RARC[p.r]);
+  if(p.id==='emp')warn(G.perks.emp===1?'已解锁 EMP · 按 R 使用':'EMP 升级到 2 级','#5fd0ff');
+  else if(p.id==='mlrs')warn(G.perks.mlrs===1?'已解锁多管火箭炮 · 按 F 使用':'火箭炮升级到 2 级','#ffb050');
+  else warn(`获得强化：${p.name}`,RARC[p.r]);
 }
 function choose(i){
   if(state!=='pick'||!G.choices[i])return;
@@ -1759,7 +1759,8 @@ function updateTouchUI(){
   setBtn('tNuke',0,G.nukes+'',G.nukes>0?'on':'off');
   const el=empLevel(),ml=mlrsLevel(),xw=!!(el||ml);
   if(xw!==document.body.classList.contains('xw'))document.body.classList.toggle('xw',xw);
-  $('tEmp').classList.toggle('lock',!el);$('tMlrs').classList.toggle('lock',!ml);
+  $('tEmp').classList.toggle('lock',!xw);$('tMlrs').classList.toggle('lock',!xw);
+  if(!el)setBtn('tEmp',0,'未解锁','off');if(!ml)setBtn('tMlrs',0,'未解锁','off');
   if(el)setBtn('tEmp',(1-G.empCd/EMP_CD(el))*100,G.empCd>0?Math.ceil(G.empCd)+'s':'就绪',G.empCd>0?'':'on');
   if(ml)setBtn('tMlrs',(1-G.mlrsCd/MLRS_CD(ml))*100,G.mlrsCd>0?Math.ceil(G.mlrsCd)+'s':'就绪',G.mlrsCd>0?'':'on');
 }
