@@ -506,7 +506,10 @@ function update(dt){
       if(input.mouseIn&&!input.rdrag){const band=36,sp=Math.min(W,H)*.6*dt,ex=Math.abs(aim.x)-(W/2-band),ey=Math.abs(aim.y)-(H/2-band);
         const px=ex>0?Math.sign(aim.x)*Math.min(1,ex/band):0,py=ey>0?Math.sign(aim.y)*Math.min(1,ey/band):0;if(px||py)pan(px*sp,py*sp);}}
   }
-  g.zcT=WP[g.w].zoom;V.zc+=(g.zcT-V.zc)*Math.min(1,dt*7);V.z=V.base*V.zc;
+  const zOld=V.z;g.zcT=WP[g.w].zoom;V.zc+=(g.zcT-V.zc)*Math.min(1,dt*7);V.z=V.base*V.zc;
+  // zoom around the crosshair: keep the ground point under it fixed while the zoom changes
+  if(zOld>0&&V.z!==zOld&&(aim.x||aim.y)){const f=1/zOld-1/V.z;
+    cam.x=clamp(cam.x+(aim.x*V.c+aim.y*V.s)*f,40,MAP-40);cam.y=clamp(cam.y+(-aim.x*V.s+aim.y*V.c)*f,40,MAP-40);}
   g.shake=Math.min(g.shake,26)*Math.pow(.02,dt);
   V.x=cam.x+Math.sin(g.time*.63)*2.2+Math.sin(g.time*1.7)*.8;V.y=cam.y+Math.cos(g.time*.51)*2.2;
   V.ox=W/2+rnd(-1,1)*g.shake;V.oy=H/2+rnd(-1,1)*g.shake;
