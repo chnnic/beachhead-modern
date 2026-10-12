@@ -405,9 +405,9 @@ function mkVeh(kind,x,y,ang){const t={car:[18,9,6,50],tech:[20,10,6,120],btr:[28
     arm:kind==='btr'?[1,.55,.18]:[1,1,1],dc:pick(CPAL)};}
 const WP=[
   {n:'105 mm',k:'105',zoom:1,   cd:3.3, fl:1.25,dmg:900,r:80,sp:4,shake:11,bld:1},
-  {n:'40 mm', k:'40', zoom:1.55,cd:.6,  fl:.85, dmg:170,r:28,sp:5,shake:3.2,bld:.2},
-  {n:'25 mm', k:'25', zoom:2.4, cd:.085,fl:.55, dmg:60, r:9, sp:7,shake:.7,bld:0},
-  {n:'燃烧弹',k:'燃烧',zoom:1.3, cd:6,   fl:1,   dmg:40, r:20,sp:3,shake:1.5,bld:0},
+  {n:'40 mm', k:'40', zoom:1,cd:.6,  fl:.85, dmg:170,r:28,sp:5,shake:3.2,bld:.2},
+  {n:'25 mm', k:'25', zoom:1,  cd:.085,fl:.55, dmg:60, r:9, sp:7,shake:.7,bld:0},
+  {n:'燃烧弹',k:'燃烧',zoom:1,  cd:6,   fl:1,   dmg:40, r:20,sp:3,shake:1.5,bld:0},
 ];
 const FZR=46;                       // incendiary fire-zone radius
 const nW=()=>G&&G.mode==='z'?4:3;   // incendiary only exists in zombie mode
@@ -883,13 +883,13 @@ function reticle(x,y){
     line(x-L,y,x-g,y);line(x+g,y,x+L,y);line(x,y-L,x,y-g);line(x,y+g,x,y+L);
     line(x-L,y-t,x-L,y+t);line(x+L,y-t,x+L,y+t);line(x-t,y-L,x+t,y-L);line(x-t,y+L,x+t,y+L);
     for(const sx of [-1,1])for(const sy of [-1,1]){line(x+sx*b,y+sy*b,x+sx*(b-bl),y+sy*b);line(x+sx*b,y+sy*b,x+sx*b,y+sy*(b-bl));}}
-  else if(w===1){ctx.lineWidth=Math.max(1.6,u*.35);const g=u*3,L=u*20;
+  else if(w===1){ctx.lineWidth=Math.max(1.6,u*.35);const g=u*2.5,L=u*17;
     line(x-L,y,x-g,y);line(x+g,y,x+L,y);line(x,y-L,x,y-g);line(x,y+g,x,y+L);
-    for(let d=g+u*3;d<=L;d+=u*3.4){const t=u*(Math.round((d-g)/(u*3.4))%2?1.6:1);line(x-d,y-t,x-d,y+t);line(x+d,y-t,x+d,y+t);line(x-t,y-d,x+t,y-d);line(x-t,y+d,x+t,y+d);}}
+    for(let d=g+u*2.8;d<=L;d+=u*2.9){const t=u*(Math.round((d-g)/(u*2.9))%2?1.4:.9);line(x-d,y-t,x-d,y+t);line(x+d,y-t,x+d,y+t);line(x-t,y-d,x+t,y-d);line(x-t,y+d,x+t,y+d);}}
   else if(w===3){ctx.lineWidth=Math.max(1.5,u*.32);const R=FZR*V.z,g=u*2.5;ctx.setLineDash([6,5]);ctx.arc(x,y,R,0,TAU);ctx.stroke();ctx.setLineDash([]);ctx.beginPath();
     line(x-R*.45,y,x-g,y);line(x+g,y,x+R*.45,y);line(x,y-R*.45,x,y-g);line(x,y+g,x,y+R*.45);}
-  else{ctx.lineWidth=Math.max(1.4,u*.3);const s=u*4.5,L=u*16;ctx.rect(x-s,y-s,s*2,s*2);
-    line(x-L,y,x-s,y);line(x+s,y,x+L,y);line(x,y-L,x,y-s);line(x,y+s,x,y+L);line(x-u,y,x+u,y);line(x,y-u,x,y+u);}
+  else{ctx.lineWidth=Math.max(1.4,u*.3);const s=u*2.6,L=u*9;ctx.rect(x-s,y-s,s*2,s*2);
+    line(x-L,y,x-s,y);line(x+s,y,x+L,y);line(x,y-L,x,y-s);line(x,y+s,x,y+L);line(x-u*.6,y,x+u*.6,y);line(x,y-u*.6,x,y+u*.6);}
   ctx.stroke();
   const cd=G.cd[w],wp=WP[w];
   if(w!==2&&cd>0){const p=1-cd/wp.cd;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,u*(w===0?8.5:5.5),-Math.PI/2,-Math.PI/2+TAU*p);ctx.stroke();}
