@@ -45,6 +45,8 @@ body.touch .dkeys{display:none}
 .btn:hover{filter:brightness(1.06);transform:translateY(-1px)}
 .btn:active{transform:translateY(1px)}
 .btn.day{background:linear-gradient(180deg,#ffe3a3,#f0b552);box-shadow:0 6px 22px rgba(255,190,80,.25),inset 0 1px 0 #fff}
+.btn.toggle{font-size:14px;padding:9px 14px;letter-spacing:.06em;font-weight:700}
+.btn.toggle.offx{opacity:.6}
 .btn.ghost{background:rgba(255,255,255,.08);color:var(--text);box-shadow:none;border:1px solid var(--line)}
 .row{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
 .btns{display:flex;gap:10px;flex-wrap:wrap}
@@ -109,6 +111,7 @@ body.touchui #tpause{display:block}
       <div><kbd>C</kbd>镜头回到友军</div>
       <div><kbd>P</kbd><kbd>Esc</kbd>暂停</div>
       <div><kbd>M</kbd>静音</div>
+      <div><kbd>N</kbd>开 / 关飞机嗡鸣声</div>
     </div>
     <div class="keys tkeys">
       <div><kbd>拖动</kbd>屏幕任意位置移动瞄准</div>
@@ -121,6 +124,7 @@ body.touchui #tpause{display:block}
       <div class="btns"><button class="btn" id="startBtn">夜间任务 ▶</button><button class="btn day" id="dayBtn">白天任务 ☀</button></div>
       <div class="hs">最高得分 <b id="best">0</b></div>
     </div>
+    <div class="btns" style="margin-top:16px"><button class="btn ghost toggle droneBtn" id="droneBtn">飞机嗡鸣声：开</button></div>
   </div>
 </div>
 
@@ -133,6 +137,7 @@ body.touchui #tpause{display:block}
       <button class="btn" id="resumeBtn">继续任务</button>
       <button class="btn ghost" id="quitBtn">返回基地</button>
     </div>
+    <div class="btns" style="margin-top:12px"><button class="btn ghost toggle droneBtn" id="pDroneBtn">飞机嗡鸣声：开</button></div>
   </div>
 </div>
 
@@ -197,7 +202,7 @@ function resize(){
 }
 
 // ================= audio =================
-const AU={};let muted=store.get('ac130_mute',false);
+const AU={};let muted=store.get('ac130_mute',false),droneOn=store.get('ac130_drone',true);
 function initAudio(){
   if(AU.c){if(AU.c.state==='suspended')AU.c.resume();return;}
   const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
@@ -206,7 +211,7 @@ function initAudio(){
     AU.m=c.createGain();AU.m.gain.value=muted?0:.75;AU.m.connect(comp);
     const len=c.sampleRate*2,buf=c.createBuffer(1,len,c.sampleRate),d=buf.getChannelData(0);for(let i=0;i<len;i++)d[i]=Math.random()*2-1;AU.nb=buf;
     // engine drone
-    const dg=c.createGain();dg.gain.value=.05;dg.connect(AU.m);const lp=c.createBiquadFilter();lp.type='lowpass';lp.frequency.value=170;lp.connect(dg);
+    const dg=c.createGain();dg.gain.value=droneOn?.05:0;AU.dg=dg;dg.connect(AU.m);const lp=c.createBiquadFilter();lp.type='lowpass';lp.frequency.value=170;lp.connect(dg);
     for(const f of [46,46.7,93.1]){const o=c.createOscillator();o.type='sawtooth';o.frequency.value=f;o.connect(lp);o.start();}
     const ns=c.createBufferSource();ns.buffer=buf;ns.loop=true;const nf=c.createBiquadFilter();nf.type='lowpass';nf.frequency.value=380;
     const ng=c.createGain();ng.gain.value=.5;ns.connect(nf);nf.connect(ng);ng.connect(dg);ns.start();
@@ -480,6 +485,9 @@ function flare(){if(!G||G.end||G.flareCd>0)return;G.flareCd=9;SFX.flare();
   for(let i=0;i<18;i++)SF.push({x:W*rnd(.05,.95),y:H+rnd(0,40),vx:rnd(-160,160),vy:-rnd(260,520),life:0,max:rnd(1.4,2.2)});
   const M=G.missile;if(M&&!M.def){M.def=true;M.defT=M.t;radio('干扰弹奏效，导弹已脱锁。','机长');msg('导弹已规避',1.6);}}
 function toggleThermal(){if(!G)return;if(G.day)G.sens=(G.sens+1)%3;else{G.sens=G.sens===1?2:1;bhot=G.sens===2;store.set('ac130_bhot',bhot);}G.stat=Math.max(G.stat,.5);}
+function toggleDrone(){droneOn=!droneOn;store.set('ac130_drone',droneOn);
+  if(AU.dg)AU.dg.gain.setTargetAtTime(droneOn?.05:0,AU.c.currentTime,.08);syncDroneUI();if(G&&!G.demo)msg(droneOn?'飞机嗡鸣声：开':'飞机嗡鸣声：关',1.2);}
+function syncDroneUI(){document.querySelectorAll('.droneBtn').forEach(b=>{b.textContent='飞机嗡鸣声：'+(droneOn?'开':'关');b.classList.toggle('offx',!droneOn);});}
 function toggleMute(){muted=!muted;store.set('ac130_mute',muted);if(AU.m)AU.m.gain.value=muted?0:.75;}
 
 // ================= update =================
@@ -875,6 +883,7 @@ function showEnd(){state='end';document.body.classList.remove('playing');
   if(g.win)st.push(['过关奖励','+'+g.bonus.toLocaleString()]);
   $('endStats').innerHTML=st.map(s=>`<div class="stat${s[2]?' big':''}"><span>${s[0]}</span><b>${s[1]}</b></div>`).join('');
   $('nextBtn').style.display=g.win?'':'none';$('retryBtn').textContent=g.win?'重玩本关':'重试本关';endEl.classList.add('show');}
+document.querySelectorAll('.droneBtn').forEach(b=>b.onclick=toggleDrone);syncDroneUI();
 $('startBtn').onclick=()=>startGame(1);$('dayBtn').onclick=()=>startGame(1,0,true);
 $('resumeBtn').onclick=resume;$('quitBtn').onclick=toMenu;$('homeBtn').onclick=toMenu;
 $('nextBtn').onclick=()=>startGame(G.level+1,G.score,G.day);$('retryBtn').onclick=()=>startGame(G.level,G.score0,G.day);
@@ -883,6 +892,7 @@ $('nextBtn').onclick=()=>startGame(G.level+1,G.score,G.day);$('retryBtn').onclic
 addEventListener('keydown',e=>{
   K[e.code]=true;if(e.repeat)return;
   if(e.code==='KeyM')toggleMute();
+  if(e.code==='KeyN')toggleDrone();
   if(state==='play'){switch(e.code){
     case 'Digit1':case 'Numpad1':setW(0);break;case 'Digit2':case 'Numpad2':setW(1);break;case 'Digit3':case 'Numpad3':setW(2);break;
     case 'KeyQ':setW((G.w+2)%3);break;case 'KeyE':case 'Tab':e.preventDefault();setW((G.w+1)%3);break;
