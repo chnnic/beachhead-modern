@@ -1400,11 +1400,11 @@ function drawCrosshair(S){
 
 
 // ================================================================ firepower chips (late-game power items)
-const CHIP_P={boat:0.005,tank:0.03,hover:0.04,heli:0.03,jet:0.04,ship:0.4,bpart:0.3};
+const CHIP_P={boat:0.025,tank:0.1,hover:0.12,heli:0.1,jet:0.12,ship:0.8,bpart:0.6};
 function spawnChip(x,y,z){G.pickups.push({chipP:1,x,y:Math.max(0,y),z:Math.max(NEAR_Z+2,z),t:0,landed:y<=0.05,lt:0,spin:rand(0,6)});}
 function dropChip(e){
-  if(G.wave<16||e.nolock)return;
-  let n=Math.random()<(CHIP_P[e.type]||0)?1:0;if(e.elite&&Math.random()<0.35)n++;if(e.boss)n+=3;
+  if(G.wave<11||e.nolock)return;
+  let n=Math.random()<(CHIP_P[e.type]||0)?1:0;if(e.elite&&Math.random()<0.75)n++;if(e.boss)n+=3;
   for(let i=0;i<n;i++)spawnChip(e.x+rand(-2,2)*i,e.air?e.y+1:0,e.z+rand(-1,1)*i);
 }
 function pickChip(ax,ay){let best=null;for(const c of G.pickups){if(c.got)continue;const [sx,sy,s]=P(c.x,c.y,c.z),r=Math.max(16,1.4*s);
@@ -1680,7 +1680,7 @@ const UPS=[
 function show(id){['menu','shop','pause','over','pick'].forEach(k=>$(k).classList.toggle('show',k===id));}
 function waveCleared(){
   const nukeGift=G.wave%5===0&&G.nukes<2;if(nukeGift){G.nukes++;}
-  const chipGift=G.wave>=20;if(chipGift){G.chips++;warn(`守住奖励 · 火力芯片 +1（火力 +${G.chips*12}%）`,'#7fd8ff');}
+  const chipGift=G.wave>=15;if(chipGift){G.chips++;warn(`守住奖励 · 火力芯片 +1（火力 +${G.chips*12}%）`,'#7fd8ff');}
   if(G.mode==='rogue'){G.intermission=true;G.hp=Math.min(G.maxHp,G.hp+10);if(G.score>getHS())setHS(G.score);
     G.banner={t:0,title:`第 ${G.wave} 波 · 防线守住`,sub:nukeGift?'获得 1 枚战术核弹（N）· 补给空投中':'补给空投中 · 击落补给箱选择强化'};sfx.wave();
     spawnPlane({z:rand(46,60),y:21,end:true,boost:1});return;}
