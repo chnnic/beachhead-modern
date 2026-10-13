@@ -324,6 +324,7 @@ const sfx={
   beam(){nz({dur:0.8,vol:0.6,freq:5000,f2:300,type:'bandpass',q:1.5});tn({f:900,f2:60,dur:0.8,vol:0.4,type:'sawtooth'});},
   emp(){tn({f:2600,f2:60,dur:1,vol:0.22,type:'sawtooth'});nz({dur:0.8,vol:0.35,freq:4000,f2:200,type:'bandpass',q:2});},
   mlrs(){for(let i=0;i<8;i++)nz({dur:0.35,vol:0.12,freq:1600,f2:400,type:'bandpass',q:1.2,delay:i*0.09});},
+  chip(){tn({f:1200,f2:2400,dur:0.12,vol:0.12,type:'triangle'});tn({f:1800,f2:3200,dur:0.18,vol:0.1,type:'triangle',delay:0.08});},
   wave(){tn({f:440,dur:0.18,vol:0.12,type:'triangle'});tn({f:660,dur:0.3,vol:0.12,type:'triangle',delay:0.18});},
 };
 
@@ -393,7 +394,7 @@ function buildForeground(){
 function makeState(){
   return{wave:0,score:0,credits:0,hp:100,maxHp:100,kills:0,
     up:{mgDmg:0,mgCool:0,cannon:0,missile:0,armor:0,ciws:0,emp:0,mlrs:0},
-    empCd:0,mlrsCd:0,emp:null,flashB:0,salvo:[],
+    empCd:0,mlrsCd:0,emp:null,flashB:0,salvo:[],chips:0,chipsBought:0,pickups:[],
     enemies:[],props:[],parts:[],hostiles:[],shells:[],missiles:[],decals:[],floaters:[],tracers:[],delayed:[],friendly:[],glowQ:[],
     clouds:[],rain:[],events:[],evTotal:1,time:0,waveTime:0,combo:0,comboT:0,bestCombo:0,heat:0,overheat:false,mgCd:0,sinceFire:9,spin:0,spinA:0,
     cCd:0,mCount:3,mRegenT:0,nukes:0,nuke:null,flash:0,sox:0,soy:0,strike:0,shake:0,dmgFlash:0,hitMark:0,recoil:0,cRecoil:0,muzzle:0,cMuzzle:0,ciwsT:0,lock:null,lockT:0,
@@ -401,11 +402,12 @@ function makeState(){
     shield:0,shieldT:9,shieldHit:0,hitCrit:0,mgShots:0,
     banner:null,warn:null,seen:{},clearT:0,light:0,lightT:8,dHp:1,dF:1,dD:1,waveKills:0,waveScore:0,overT:0,timeScale:1,shotN:0,mSide:1};
 }
+const CHIP=()=>1+0.12*((G&&G.chips)||0),PW=()=>((G&&G.wp)||1)*CHIP();
 function stats(){const u=G.up,p=id=>G.perks[id]||0;return{
-  mgDmg:(1+0.25*u.mgDmg)*(1+0.2*p('mgdmg')),mgRate:17*(1+0.18*p('rate')),
+  mgDmg:(1+0.25*u.mgDmg)*(1+0.2*p('mgdmg'))*CHIP(),mgRate:17*(1+0.18*p('rate')),
   heatPer:p('overdrive')?0:0.019/(1+0.3*u.mgCool)*Math.pow(0.75,p('coolant')),cool:0.55*(1+0.3*u.mgCool),
-  cDmg:16*(1+0.2*u.cannon)*(1+0.25*p('cdmg'))*(G.wp||1),cCd:0.72*Math.pow(0.88,u.cannon)*Math.pow(0.85,p('autoload')),cR:4.6*(1+0.1*u.cannon),
-  mCap:3+u.missile+p('msl'),mRegen:7.5*Math.pow(0.85,u.missile+p('msl')),mDmg:75*(1+0.3*p('warhead'))*(G.wp||1),ciws:Math.min(3,u.ciws+p('ciws')),
+  cDmg:16*(1+0.2*u.cannon)*(1+0.25*p('cdmg'))*PW(),cCd:0.72*Math.pow(0.88,u.cannon)*Math.pow(0.85,p('autoload')),cR:4.6*(1+0.1*u.cannon),
+  mCap:3+u.missile+p('msl'),mRegen:7.5*Math.pow(0.85,u.missile+p('msl')),mDmg:75*(1+0.3*p('warhead'))*PW(),ciws:Math.min(3,u.ciws+p('ciws')),
   split:p('split'),crit:0.12*p('crit'),ap:Math.pow(0.7,p('ap')),exr:0.1*p('exround'),shieldMax:25*p('shield')};}
 function setPalette(i){PAL=PALS[i%PALS.length];buildBackground();
   G.clouds=[];const n=PAL.rain?11:7;for(let k=0;k<n;k++)G.clouds.push({x:Math.random(),y:rand(0.05,0.8),w:rand(0.08,0.2),sp:rand(0.004,0.012)*(PAL.rain?1.6:1),seed:Math.random()*100});
@@ -415,9 +417,9 @@ function newGame(mode){G=makeState();G.mode=mode||'classic';state='play';
   if(w>1){G.credits=w*400;G.up.armor=Math.min(5,w-1);G.maxHp+=G.up.armor*25;G.hp=G.maxHp;}
   startWave(w);}
 function startWave(n){
-  G.wave=n;const pl=Object.values(G.perks).reduce((a,b)=>a+b,0);
-  const early=Math.min(n,10)-1,late=Math.max(0,n-10);
-  const ws=Math.pow(1.11,early)*Math.pow(1.07,late);G.wp=1+(ws-1)*0.75;
+  G.wave=n;const pl=Object.values(G.perks).reduce((a,b)=>a+b,0)+(G.chips||0);
+  const early=Math.min(n,10)-1,mid=clamp(n-10,0,10),post=Math.max(0,n-20),late=mid+post;
+  const wsCap=Math.pow(1.11,early)*Math.pow(1.07,mid),ws=wsCap*Math.pow(1.11,post);G.wp=1+(wsCap-1)*0.75;
   G.dHp=ws*(G.mode==='rogue'?1+0.025*pl:1);G.dF=1+early*0.07+late*0.04;G.dD=1+early*0.08+late*0.05;G.eliteDrops=0;
   setPalette(n%10===0?3:n-1);
   G.enemies=[];G.hostiles=[];G.shells=[];G.missiles=[];G.delayed=[];G.friendly=[];G.decals=[];G.parts=[];G.floaters=[];G.tracers=[];G.fires=[];G.nuke=null;G.flash=0;G.salvo=[];G.emp=null;
@@ -516,7 +518,8 @@ function killEnemy(e){
   const pts=Math.round(d.score*comboMult()*(e.elite?2:1));G.score+=pts;G.waveScore+=pts;G.credits+=d.cr;G.kills++;G.waveKills++;
   G.strike=Math.min(100,G.strike+d.score/22*(1+0.5*(G.perks.striker||0)));
   if(G.perks.leech)G.hp=Math.min(G.maxHp,G.hp+0.6*G.perks.leech);
-  if(G.perks.chain&&e.type!=='infantry'&&e.type!=='drone'){const n=G.perks.chain;G.delayed.push({t:0.12,fn:()=>explode(e.x,e.y+1,e.z,6+e.w*0.25,25*n*(G.wp||1),{fx:2})});}
+  if(G.perks.chain&&e.type!=='infantry'&&e.type!=='drone'){const n=G.perks.chain;G.delayed.push({t:0.12,fn:()=>explode(e.x,e.y+1,e.z,6+e.w*0.25,25*n*PW(),{fx:2})});}
+  dropChip(e);
   if(e.elite&&G.eliteDrops<2&&Math.random()<(G.eliteDrops===0?1:0.5)&&++G.eliteDrops)G.crates.push({crate:1,x:e.x,y:e.air?e.y+1:0,z:Math.max(NEAR_Z+3,e.z),t:1,hp:3,boost:2,end:false,landed:false});
   floater(e.x,e.y+e.h+0.6,e.z,'+'+pts);
   e.dieT=d.dieTime||0;d.kill&&d.kill(e);
@@ -527,6 +530,7 @@ function explode(x,y,z,r,dmg,o){
     if(dd<r)damageEnemy(e,dmg*(1-0.55*dd/r)*(o.pierce?1:1-e.armor*0.25));}
   for(const h of G.hostiles)if(!h.dead&&Math.hypot(h.x-x,h.y-y,h.z-z)<r*1.3)killHostile(h);
   for(const c of G.crates)if(!c.open&&Math.hypot(c.x-x,c.y+0.7-y,c.z-z)<r+1.5)openCrate(c);
+  for(const c of G.pickups)if(!c.got&&Math.hypot(c.x-x,c.y+0.5-y,c.z-z)<r+1.5)takeChip(c);
   const surf=surfAt(y,z);
   if(o.incend&&surf==='sand')G.fires.push({x,z,r:3.2+0.8*o.incend,t:4});
   fxExplosion(x,y,z,o.fx||r*0.45,surf);
@@ -560,7 +564,7 @@ const shadow=(e,rx)=>{ctx.fillStyle='rgba(0,0,0,.22)';ell(0,0,rx,rx*CAM_H/e.z);}
 
 const DEF={
 infantry:{score:10,cr:4,dieTime:1.1,
-  init(e){e.w=0.9;e.h=1.8;e.d=0.7;e.hp=(e.rpg?2:1)*(1+(G.wave-1)*0.07);e.speed=rand(3.2,4.6);e.stopZ=e.rpg?rand(44,60):NEAR_Z+rand(1.5,10);
+  init(e){e.w=0.9;e.h=1.8;e.d=0.7;e.hp=(e.rpg?2:1)*(1+(G.wave-1)*0.07+Math.max(0,G.wave-20)*0.15);e.speed=rand(3.2,4.6);e.stopZ=e.rpg?rand(44,60):NEAR_Z+rand(1.5,10);
     e.state='run';e.fireT=rand(0.4,2.4);e.phase=rand(0,7);e.drift=rand(-.7,.7);e.muz=0;},
   update(e,dt){
     e.muz=Math.max(0,e.muz-dt);
@@ -738,7 +742,7 @@ jet:{score:300,cr:80,dieTime:0,
     if(e.z>260){gq(-4.9,0.3,'red',0.9,0.5+0.5*Math.sin(e.t*12));gq(4.9,0.3,'green',0.9,0.5+0.5*Math.sin(e.t*12));}
   }},
 drone:{score:30,cr:8,dieTime:0,
-  init(e){e.air=true;e.w=0.9;e.h=0.45;e.d=0.9;e.hp=1.5*(1+(G.wave-1)*0.07);e.z=rand(190,250);e.y=rand(6,18);e.x=(e.gx||0)+rand(-9,9);e.sp=rand(19,25);e.ph=rand(0,7);},
+  init(e){e.air=true;e.w=0.9;e.h=0.45;e.d=0.9;e.hp=1.5*(1+(G.wave-1)*0.07+Math.max(0,G.wave-20)*0.15);e.z=rand(190,250);e.y=rand(6,18);e.x=(e.gx||0)+rand(-9,9);e.sp=rand(19,25);e.ph=rand(0,7);},
   update(e,dt){
     const tx=Math.sin(e.t*1.3+e.ph)*4,ty=CAM_H-1+Math.sin(e.t*2+e.ph),tz=-2;
     const dx=tx-e.x,dy=ty-e.y,dz=tz-e.z,L=Math.hypot(dx,dy,dz)||1;
@@ -919,8 +923,9 @@ function fireMG(S){
     bullet(S,a.x+Math.cos(th)*r,a.y+Math.sin(th)*r);}
 }
 function bullet(S,ax,ay){
-  const hit=pickAt(ax,ay,true),cr=pickCrate(ax,ay),hz=hit?(hit.kind==='enemy'?hit.e.z:hit.h.z):1e9;
-  if(cr&&cr.z<hz)hitCrate(cr,ax,ay);
+  const hit=pickAt(ax,ay,true),cr=pickCrate(ax,ay),ch=pickChip(ax,ay),hz=hit?(hit.kind==='enemy'?hit.e.z:hit.h.z):1e9;
+  if(ch&&ch.z<hz&&(!cr||ch.z<cr.z))takeChip(ch);
+  else if(cr&&cr.z<hz)hitCrate(cr,ax,ay);
   else if(hit){
     if(hit.kind==='enemy'){const e=hit.e;let dmg=S.mgDmg*(1-e.armor*S.ap);const crit=Math.random()<S.crit;if(crit)dmg*=3;
       damageEnemy(e,dmg);G.hitMark=0.1;if(crit)G.hitCrit=0.15;
@@ -976,7 +981,7 @@ function callStrike(){
   warn('空袭已就位','#7fe08a');sfx.jet();
   for(const fx of [-9,9])G.friendly.push({x:fx,y:24,z:2,vz:150});
   const reach=(z-2)/150,xm=xMax(z)*0.9,nb=G.perks.carpet?18:9;
-  for(let i=0;i<nb;i++)G.delayed.push({t:reach+0.15+i*0.08*9/nb,fn:()=>explode(lerp(-xm,xm,i/(nb-1))+rand(-2,2),0,z+rand(-4,4)+(G.perks.carpet?(i%2?6:-6):0),8,95*(G.wp||1),{pierce:true,fx:3.2,crater:0.7})});
+  for(let i=0;i<nb;i++)G.delayed.push({t:reach+0.15+i*0.08*9/nb,fn:()=>explode(lerp(-xm,xm,i/(nb-1))+rand(-2,2),0,z+rand(-4,4)+(G.perks.carpet?(i%2?6:-6):0),8,95*PW(),{pierce:true,fx:3.2,crater:0.7})});
 }
 function gameOver(){
   state='dying';G.overT=0;G.timeScale=0.35;sfx.hurt();
@@ -1003,7 +1008,7 @@ function update(dt){
   G.shells=G.shells.filter(s=>!s.done);
   for(const m of G.missiles)updateMissile(m,dt);
   G.missiles=G.missiles.filter(m=>!m.done);
-  updateRogue(dt);updateNuke(dt);updateSpecial(dt);
+  updateRogue(dt);updateNuke(dt);updateSpecial(dt);updateChips(dt);
   for(const f of G.friendly){f.z+=f.vz*dt;f.y+=dt*3;if(f.z>500)f.done=true;}
   G.friendly=G.friendly.filter(f=>!f.done);
   for(const d of G.delayed){d.t-=dt;if(d.t<=0){d.done=true;d.fn();}}
@@ -1041,7 +1046,7 @@ function updateMissile(m,dt){
   if(hit||m.t>7){m.done=true;
     const big=m.tgt&&(m.tgt.boss||m.tgt.parent);
     if(hit&&m.tgt&&m.tgt.alive)damageEnemy(m.tgt,m.tgt.maxHp*(big?0.03:0.10)*(m.mini?0.4:1));
-    if(m.mini){explode(m.x,Math.max(0,m.y),m.z,4,30*(G.wp||1),{pierce:true,fx:1.4});return;}
+    if(m.mini){explode(m.x,Math.max(0,m.y),m.z,4,30*PW(),{pierce:true,fx:1.4});return;}
     explode(m.x,Math.max(0,m.y),m.z,6,stats().mDmg,{pierce:true,fx:2.6});
     if(G.perks.swarm){const ts=G.enemies.filter(e=>e.alive&&!e.ghost&&e!==m.tgt).sort((a,b)=>Math.hypot(a.x-m.x,a.z-m.z)-Math.hypot(b.x-m.x,b.z-m.z));
       for(let i=0;i<3;i++){const t=ts[i%Math.max(1,ts.length)]||null;
@@ -1134,9 +1139,10 @@ function drawWorld(){
   for(const p of G.parts)if(!p.go)list.push(p);
   for(const h of G.hostiles)if(h.z>1)list.push(h);
   for(const c of G.crates)list.push(c);
+  for(const c of G.pickups)list.push(c);
   for(const p of G.planes)list.push(p);
   list.sort((a,b)=>b.z-a.z);
-  for(const o of list){if(o.type)drawEnemy(o);else if(o.prop)drawProp(o);else if(o.ho)drawHostile(o);else if(o.crate)drawCrate(o);else if(o.plane)drawPlane(o);else drawPart(o);}
+  for(const o of list){if(o.type)drawEnemy(o);else if(o.prop)drawProp(o);else if(o.ho)drawHostile(o);else if(o.crate)drawCrate(o);else if(o.chipP)drawChip(o);else if(o.plane)drawPlane(o);else drawPart(o);}
   ctx.globalAlpha=1;
 }
 function drawEnemy(e){
@@ -1251,6 +1257,7 @@ function drawHUD(){
   panel(pad,pad,220*k,74*k);
   txt(`WAVE ${G.wave} · ${PAL.name}`,pad+14*k,pad+22*k,12*k,'#ffb21f','left',NUMF,700);
   txt(G.score.toLocaleString(),pad+14*k,pad+58*k,34*k,'#fff','left',NUMF,700);
+  if(G.chips)txt(`火力 +${G.chips*12}%`,pad+206*k,pad+58*k,13*k,'#7fd8ff','right',UIF,800);
   if(G.combo>=2){const cw=150*k;panel(pad,pad+82*k,cw,30*k);txt(`连杀 ${G.combo}`,pad+12*k,pad+102*k,14*k,'#fff','left',UIF,700);
     txt(`×${cm.toFixed(1)}`,pad+cw-10*k,pad+103*k,17*k,cm>1?'#ffb21f':'#93a3b4','right',NUMF,700);
     bar(pad+12*k,pad+106*k,cw-24*k,2*k,G.comboT/2.2,'#ffb21f');}
@@ -1277,6 +1284,7 @@ function drawHUD(){
     bar(bx,by+20*k,bw,10*k,cur/mx,boss.invuln?'#ff8a5a':'#ff4d3a');
     if(boss.invuln)txt('护盾',bx+bw-4*k,by+29*k,9*k,'#5fd0ff','right',UIF,800);
     if(boss.charging>0){bar(bx,by+35*k,bw,4*k,1-boss.charging/CHARGE_T,'#5fd0ff');txt('电磁炮充能',bx,by+46*k,10*k,'#5fd0ff','left',UIF,800);}}
+  for(const c of G.pickups){const [sx,sy,s]=P(c.x,c.y,c.z);txt('火力芯片',sx,sy-Math.max(18,1.6*s)-6,11*k,'#7fd8ff','center',UIF,800);}
   for(const c of G.crates){const [sx,sy,s]=P(c.x,c.y,c.z),top=sy-(c.landed?1.8:6.6)*s-8;
     txt(c.end?'波次补给':'补给',sx,top,12*k,'#7fe08a','center',UIF,800);}
   // armor bottom-left
@@ -1348,7 +1356,7 @@ function drawCompactHUD(S,alive,prog,cm){
   bar(p+10,y+21,LW-20,8,hpR,hpR>0.5?'#4fd27f':hpR>0.25?'#ffcf4a':'#ff4d4d');if(sh)bar(p+10,y+33,LW-20,3,G.shield/S.shieldMax,'#5fd0ff');
   y-=6+46;panel(p,y,LW,46);
   txt(`WAVE ${G.wave} · ${PAL.name}`,p+10,y+15,10,'#ffb21f','left',NUMF,700);txt(`敌军 ${alive}`,p+LW-10,y+15,10,'#dfe7ef','right',UIF,600);
-  txt(G.score.toLocaleString(),p+10,y+35,20,'#fff','left',NUMF,700);bar(p+10,y+40,LW-20,2.5,prog,'rgba(255,178,31,.85)');
+  txt(G.score.toLocaleString(),p+10,y+35,20,'#fff','left',NUMF,700);if(G.chips)txt(`火力+${G.chips*12}%`,p+LW-10,y+35,11,'#7fd8ff','right',UIF,800);bar(p+10,y+40,LW-20,2.5,prog,'rgba(255,178,31,.85)');
   if(G.combo>=2){y-=6+22;panel(p,y,LW,22);txt(`连杀 ${G.combo}`,p+10,y+15,11,'#fff','left',UIF,700);
     txt(`×${cm.toFixed(1)}`,p+LW-10,y+16,13,cm>1?'#ffb21f':'#93a3b4','right',NUMF,700);bar(p+10,y+19,LW-20,1.5,G.comboT/2.2,'#ffb21f');}
   if(G.perkOrder.length){const bw=32,bh=16,g=3,per=Math.max(1,Math.floor((LW+g)/(bw+g))),rows=Math.ceil(G.perkOrder.length/per);
@@ -1390,6 +1398,38 @@ function drawCrosshair(S){
 
 
 
+
+// ================================================================ firepower chips (late-game power items)
+const CHIP_P={boat:0.005,tank:0.03,hover:0.04,heli:0.03,jet:0.04,ship:0.4,bpart:0.3};
+function spawnChip(x,y,z){G.pickups.push({chipP:1,x,y:Math.max(0,y),z:Math.max(NEAR_Z+2,z),t:0,landed:y<=0.05,lt:0,spin:rand(0,6)});}
+function dropChip(e){
+  if(G.wave<16||e.nolock)return;
+  let n=Math.random()<(CHIP_P[e.type]||0)?1:0;if(e.elite&&Math.random()<0.35)n++;if(e.boss)n+=3;
+  for(let i=0;i<n;i++)spawnChip(e.x+rand(-2,2)*i,e.air?e.y+1:0,e.z+rand(-1,1)*i);
+}
+function pickChip(ax,ay){let best=null;for(const c of G.pickups){if(c.got)continue;const [sx,sy,s]=P(c.x,c.y,c.z),r=Math.max(16,1.4*s);
+  if(Math.abs(ax-sx)<r&&ay>sy-r*1.6&&ay<sy+6&&(!best||c.z<best.z))best=c;}return best;}
+function takeChip(c){if(c.got)return;c.got=true;G.chips++;sfx.chip();
+  part({kind:'flash',go:1,x:c.x,y:c.y+0.6,z:c.z,life:0.3,size:2.5});
+  floater(c.x,c.y+2,c.z,`火力 +12% → +${G.chips*12}%`,'#7fd8ff');}
+function updateChips(dt){
+  for(const c of G.pickups){c.t+=dt;c.spin+=dt*3;
+    if(!c.landed){c.y-=2.5*dt;c.x+=Math.sin(c.t*1.3)*0.4*dt;if(c.y<=0){c.y=0;c.landed=true;}}
+    else{c.lt+=dt;if(c.lt>12)c.got=true;}}
+  G.pickups=G.pickups.filter(c=>!c.got);
+}
+function drawChip(c){
+  const [sx,sy,s]=P(c.x,c.y,c.z);if(sx<-60||sx>W+60)return;
+  if(c.landed&&c.lt>9&&Math.sin(c.lt*18)<0)return;
+  const r=Math.max(9,0.8*s),cy=sy-r*1.1,sq=Math.abs(Math.cos(c.spin))*0.55+0.45;
+  ctx.save();ctx.translate(sx,cy);ctx.scale(sq,1);
+  ctx.fillStyle='#0d2a3a';ctx.strokeStyle='#7fd8ff';ctx.lineWidth=2;ctx.beginPath();
+  for(let i=0;i<6;i++){const a=i*Math.PI/3;ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);}ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.fillStyle='#7fd8ff';ctx.fillRect(-r*0.35,-r*0.35,r*0.7,r*0.7);ctx.fillStyle='#0d2a3a';ctx.fillRect(-r*0.18,-r*0.18,r*0.36,r*0.36);
+  ctx.restore();
+  G.glowQ.push({n:'blue',x:sx,y:cy,r:r*2.6,a:0.55+0.25*Math.sin(G.time*7)});
+}
+
 // ================================================================ special weapons: EMP + rocket salvo
 const empLevel=()=>Math.max(G.up.emp||0,G.perks.emp||0),mlrsLevel=()=>Math.max(G.up.mlrs||0,G.perks.mlrs||0);
 const EMP_CD=l=>l>=2?22:30,MLRS_CD=l=>l>=2?18:25;
@@ -1422,7 +1462,7 @@ function updateSpecial(dt){
   for(const r of G.salvo){r.t+=dt;if(r.t<0)continue;const k=Math.min(1,r.t/r.T);
     r.x=lerp(r.x0,r.x1,k);r.z=lerp(r.z0,r.z1,k);r.y=lerp(r.y0,0,k)+Math.sin(Math.PI*k)*r.arc;
     if(r.z>10&&Math.random()<0.8)part({kind:'smoke',x:r.x,y:r.y,z:r.z,vx:rand(-.3,.3),vy:rand(0,.4),life:rand(0.8,1.4),size:0.35,grow:1,col:'trail',a:0.5});
-    if(k>=1){r.done=true;explode(r.x1,0,r.z1,5.5,40*(G.wp||1),{fx:1.8});}}
+    if(k>=1){r.done=true;explode(r.x1,0,r.z1,5.5,40*PW(),{fx:1.8});}}
   G.salvo=G.salvo.filter(r=>!r.done);
 }
 
@@ -1487,6 +1527,7 @@ const PERKS=[
  {id:'repair',r:0,s:'',name:'战地维修',desc:'立即修复 50 点装甲',max:99,instant:true,ok:()=>G.hp<G.maxHp},
  {id:'emp',r:2,s:'EMP',name:'EMP 电磁脉冲',desc:'解锁 EMP（R 键）：击落所有无人机与来袭导弹，战机坠毁，载具瘫痪。再次获得：冷却更短、瘫痪更久',max:2},
  {id:'mlrs',r:2,s:'火箭',name:'多管火箭炮',desc:'解锁火箭炮齐射（F 键）：向准星区域齐射 12 枚火箭。再次获得：16 枚、冷却更短',max:2},
+ {id:'chippk',r:1,s:'',name:'军工芯片包',desc:'获得 2 枚火力芯片：全部武器伤害 +24%（可叠加）',max:99,instant:true,ok:()=>G.wave>=12},
  {id:'nukepk',r:2,s:'',name:'战术核弹',desc:'获得 1 枚战术核弹，按 N 发射，清除场上全部敌人',max:99,instant:true,ok:()=>G.nukes<2},
  {id:'rate',r:1,s:'射速',name:'高速枪机',desc:'机枪射速 +18%',max:3},
  {id:'crit',r:1,s:'暴击',name:'精确射击',desc:'子弹有 12% 几率造成 3 倍伤害',max:3},
@@ -1560,6 +1601,7 @@ function reroll(){if(state!=='pick')return;if(G.rerolls<=0){sfx.deny();return;}G
 function applyPerk(p){
   if(p.id==='repair'){G.hp=Math.min(G.maxHp,G.hp+50);}
   else if(p.id==='nukepk'){G.nukes=Math.min(2,G.nukes+1);}
+  else if(p.id==='chippk'){G.chips+=2;}
   else{G.perks[p.id]=(G.perks[p.id]||0)+1;if(!G.perkOrder.includes(p.id))G.perkOrder.push(p.id);
     if(p.id==='plating'){G.maxHp+=30;G.hp=Math.min(G.maxHp,G.hp+30);}
     if(p.id==='shield')G.shield=Math.min(25*G.perks.shield,G.shield+25);
@@ -1630,6 +1672,7 @@ const UPS=[
   {id:'ciws',name:'近防拦截系统',tag:'防御',desc:'自动击落来袭火箭与无人机',max:3,cost:l=>300+l*250},
   {id:'armor',name:'复合装甲',tag:'防御',desc:'最大装甲 +25，并修复 25',max:5,cost:l=>180+l*140},
   {id:'repair',name:'紧急维修',tag:'维修',desc:'立即修复 40 点装甲',max:99,cost:()=>90,repeat:true},
+  {id:'chip',name:'火力芯片',tag:'强化',desc:'全部武器伤害 +12%，可无限叠加（每次购买涨价）',max:999,cost:()=>500+150*(G.chipsBought||0),repeat:true},
   {id:'nuke',name:'战术核弹',tag:'特种',desc:'按 N 发射，清除场上全部敌人',max:99,cost:()=>1500,repeat:true},
   {id:'emp',name:'EMP 电磁脉冲',tag:'特种',desc:'按 R：击落所有无人机与来袭导弹，战机坠毁，载具瘫痪 4 秒。2 级：冷却 30→22 秒，瘫痪 6 秒',max:2,cost:l=>[900,1400][l]},
   {id:'mlrs',name:'多管火箭炮',tag:'特种',desc:'按 F：向准星区域齐射 12 枚火箭。2 级：16 枚，冷却 25→18 秒',max:2,cost:l=>[800,1300][l]},
@@ -1637,13 +1680,14 @@ const UPS=[
 function show(id){['menu','shop','pause','over','pick'].forEach(k=>$(k).classList.toggle('show',k===id));}
 function waveCleared(){
   const nukeGift=G.wave%5===0&&G.nukes<2;if(nukeGift){G.nukes++;}
+  const chipGift=G.wave>=20;if(chipGift){G.chips++;warn(`守住奖励 · 火力芯片 +1（火力 +${G.chips*12}%）`,'#7fd8ff');}
   if(G.mode==='rogue'){G.intermission=true;G.hp=Math.min(G.maxHp,G.hp+10);if(G.score>getHS())setHS(G.score);
     G.banner={t:0,title:`第 ${G.wave} 波 · 防线守住`,sub:nukeGift?'获得 1 枚战术核弹（N）· 补给空投中':'补给空投中 · 击落补给箱选择强化'};sfx.wave();
     spawnPlane({z:rand(46,60),y:21,end:true,boost:1});return;}
   state='shop';const bonus=100+G.wave*30;G.credits+=bonus;G.hp=Math.min(G.maxHp,G.hp+15);
   if(G.score>getHS())setHS(G.score);
   $('shopEyebrow').textContent=`Wave ${G.wave} cleared · 防线守住`;
-  $('waveStats').innerHTML=[['本波击杀',G.waveKills],['本波得分',G.waveScore.toLocaleString()],['守住奖励','$'+bonus+(nukeGift?' + 核弹':'')],['总分',G.score.toLocaleString()]]
+  $('waveStats').innerHTML=[['本波击杀',G.waveKills],['本波得分',G.waveScore.toLocaleString()],['守住奖励','$'+bonus+(nukeGift?' + 核弹':'')+(chipGift?' + 芯片':'')],['总分',G.score.toLocaleString()]]
     .map(([a,b])=>`<div class="stat"><span>${a}</span><b>${b}</b></div>`).join('');
   $('nextBtn').textContent=`第 ${G.wave+1} 波 ▶`;renderShop();show('shop');
 }
@@ -1651,7 +1695,7 @@ function renderShop(){
   $('shopCredits').textContent=G.credits.toLocaleString();
   $('upgrades').innerHTML=UPS.map(u=>{const lv=u.repeat?0:G.up[u.id],cost=u.cost(lv),maxed=!u.repeat&&lv>=u.max;
     const full=(u.id==='repair'&&G.hp>=G.maxHp)||(u.id==='nuke'&&G.nukes>=2);const dis=maxed||full||G.credits<cost;
-    const pips=u.id==='nuke'?`<div class="d" style="min-height:0">持有 ${G.nukes} / 2</div>`:u.repeat?`<div class="d" style="min-height:0">装甲 ${Math.ceil(G.hp)} / ${G.maxHp}</div>`:`<div class="pips">${Array.from({length:u.max},(_,i)=>`<i class="${i<lv?'on':''}"></i>`).join('')}</div>`;
+    const pips=u.id==='chip'?`<div class="d" style="min-height:0">已装 ${G.chips} 枚 · 火力 +${G.chips*12}%</div>`:u.id==='nuke'?`<div class="d" style="min-height:0">持有 ${G.nukes} / 2</div>`:u.repeat?`<div class="d" style="min-height:0">装甲 ${Math.ceil(G.hp)} / ${G.maxHp}</div>`:`<div class="pips">${Array.from({length:u.max},(_,i)=>`<i class="${i<lv?'on':''}"></i>`).join('')}</div>`;
     return`<div class="up"><div class="t">${u.name}<span class="tag">${u.tag}</span></div><div class="d">${u.desc}</div>${pips}
       <button data-id="${u.id}" ${dis?'disabled':''}>${maxed?'已满级':full?(u.id==='nuke'?'已满':'装甲已满'):'$'+cost}</button></div>`;}).join('');
   $('upgrades').querySelectorAll('button').forEach(b=>b.onclick=()=>buy(b.dataset.id));
@@ -1661,6 +1705,7 @@ function buy(id){const u=UPS.find(x=>x.id===id);const lv=u.repeat?0:G.up[id],cos
   if(id==='nuke'&&G.nukes>=2){G.credits+=cost;sfx.deny();return;}
   if(id==='repair')G.hp=Math.min(G.maxHp,G.hp+40);
   else if(id==='nuke')G.nukes++;
+  else if(id==='chip'){G.chips++;G.chipsBought=(G.chipsBought||0)+1;}
   else{G.up[id]++;if(id==='armor'){G.maxHp+=25;G.hp=Math.min(G.maxHp,G.hp+25);}
     if(id==='emp'&&G.up.emp===1)warn('已解锁 EMP · 按 R 使用','#5fd0ff');if(id==='mlrs'&&G.up.mlrs===1)warn('已解锁多管火箭炮 · 按 F 使用','#ffb050');}
   sfx.buy();renderShop();}
