@@ -86,6 +86,7 @@ body.touch .dkeys{display:none}
 body.touchui #touch{display:grid}
 #touch #tInc,body.zmode #touch #tFlare{display:none}
 body.zmode #touch #tInc{display:flex}
+body.no25 #touch [data-w="2"]{visibility:hidden}
 body.touchui #tpause{display:block}
 @media (orientation:landscape) and (max-height:520px){:root{--cb:48px;--fh:56px} #touch{gap:6px}}
 @media (max-width:640px){
@@ -122,6 +123,7 @@ body.touchui #tpause{display:block}
       <div><kbd>4</kbd>燃烧弹（丧尸围城）</div>
       <div><kbd>M</kbd>静音</div>
       <div><kbd>N</kbd>开 / 关飞机嗡鸣声</div>
+      <div><kbd>R</kbd>快速装填（击杀攒满后）</div>
     </div>
     <div class="keys tkeys">
       <div><kbd>拖动</kbd>屏幕任意位置移动瞄准</div>
@@ -155,6 +157,7 @@ body.touchui #tpause{display:block}
       <div><kbd>P</kbd><kbd>Esc</kbd>暂停 / 继续</div>
       <div><kbd>M</kbd>静音</div>
       <div><kbd>N</kbd>飞机嗡鸣声</div>
+      <div><kbd>R</kbd>快速装填</div>
     </div>
     <div class="keys tkeys pkeys">
       <div><kbd>拖动屏幕</kbd>移动瞄准</div>
@@ -163,12 +166,13 @@ body.touchui #tpause{display:block}
       <div class="zonly"><kbd>燃烧弹</kbd>点燃一片地面</div>
       <div class="nozonly"><kbd>干扰弹</kbd>躲避防空导弹</div>
       <div><kbd>传感器</kbd>彩色 / 白热 / 黑热</div>
+      <div><kbd>装填</kbd>击杀攒满后快速装填</div>
     </div>
     <div class="btns" style="margin-top:18px">
       <button class="btn" id="resumeBtn">继续任务</button>
       <button class="btn ghost" id="quitBtn">返回基地</button>
     </div>
-    <div class="btns" style="margin-top:12px"><button class="btn ghost toggle droneBtn" id="pDroneBtn">飞机嗡鸣声：开</button></div>
+    <div class="btns" style="margin-top:12px"><button class="btn ghost toggle droneBtn" id="pDroneBtn">飞机嗡鸣声：开</button><button class="btn ghost toggle" id="no25Btn">25mm 机炮：启用</button></div>
   </div>
 </div>
 
@@ -190,8 +194,9 @@ body.touchui #tpause{display:block}
   <button data-w="0"><b>105</b><span></span></button>
   <button data-w="1"><b>40</b><span></span></button>
   <button data-w="2"><b>25</b><span></span></button>
-  <button id="tFlare" class="w2"><b>干扰弹</b><span></span></button>
-  <button id="tInc" class="w2" data-w="3"><b>燃烧弹</b><span></span></button>
+  <button id="tFlare"><b>干扰弹</b><span></span></button>
+  <button id="tInc" data-w="3"><b>燃烧弹</b><span></span></button>
+  <button id="tBoost"><b>装填</b><span></span></button>
   <button id="tTherm"><b>传感器</b><span>白热</span></button>
   <button id="tFire" class="fire"><b>开火</b><span></span></button>
 </div>
@@ -410,8 +415,18 @@ const WP=[
   {n:'燃烧弹',k:'燃烧',zoom:1,  cd:6,   fl:1,   dmg:40, r:20,sp:3,shake:1.5,bld:0},
 ];
 const FZR=46;                       // incendiary fire-zone radius
-const nW=()=>G&&G.mode==='z'?4:3;   // incendiary only exists in zombie mode
-function cycleW(d){if(G)setW((G.w+d+nW())%nW());}
+let no25=store.get('ac130_no25',false);
+// usable weapons: 25mm can be switched off in the pause menu; incendiary only exists in zombie mode
+const wList=()=>[0,1].concat(no25?[]:[2],G&&G.mode==='z'?[3]:[]);
+function cycleW(d){if(!G)return;const L=wList(),i=L.indexOf(G.w);setW(L[((i<0?0:i)+d+L.length)%L.length]);}
+function toggle25(){no25=!no25;store.set('ac130_no25',no25);document.body.classList.toggle('no25',no25);
+  if(G&&no25&&G.w===2){G.w=1;G.swT=.22;}sync25UI();}
+function sync25UI(){const b=$('no25Btn');if(b){b.textContent='25mm 机炮：'+(no25?'停用':'启用');b.classList.toggle('offx',no25);}}
+// quick reload: kills charge the meter, R spends it for a burst of fast reloading
+const BOOST_T=12,BOOST_X=2.5,boostMax=()=>G&&G.mode==='z'?30:15;
+function charge(n){if(G&&!G.demo&&G.boostT<=0)G.boost=Math.min(boostMax(),G.boost+n);}
+function activateBoost(){if(!G||G.end||G.boostT>0||G.boost<boostMax())return;G.boostT=BOOST_T;G.boost=0;
+  msg('快速装填！',1.6);radio('装填手全速装弹，炮弹管够！','火控');SFX.swap();tn(.25,{f:500,f2:1200,type:'triangle',g:.15});}
 const R_KILL=['好击杀，好击杀。','命中，目标倒下了。','干掉了。','漂亮，直接命中。','确认击毙。','那几个家伙完蛋了。'];
 const R_MULTI=['轰——一锅端了！','全灭，干得漂亮！','好家伙，炸飞了一群。','Ka-boom！'];
 const R_FF=['停火！停火！那是友军！','检查你的射击！我们有人被击中了！'];
@@ -425,7 +440,7 @@ const aim={x:0,y:0};let touchMode=false;
 
 function newG(level,score,demo,day,mode){
   mode=mode||'m';gen(level,day,mode==='z');
-  G={level,score,score0:score,kills:0,vk:0,bk:0,ff:0,fdead:0,shots:0,w:0,cd:[0,0,0,0],heat:0,over:false,swT:0,stat:.8,bloom:0,shake:0,
+  G={level,score,score0:score,kills:0,vk:0,bk:0,ff:0,fdead:0,shots:0,w:0,cd:[0,0,0,0],boost:0,boostT:0,heat:0,over:false,swT:0,stat:.8,bloom:0,shake:0,
     planeHp:3,flareCd:0,mode,wave:0,wq:0,wTot:1,brQ:0,breakT:null,ffMax:mode==='z'?3:2,day:!!day,sens:day?0:bhot?2:1,missile:null,time:0,phase:'intro',introT:demo?1:5,sq:{s:0,halt:false,calm:0},spT:2,vT:24,bT:60,aT:36,amb:{},rc:{},radioL:[],
     msg:null,heli:null,end:false,endT:0,demo:!!demo,demoT:2,danger:false,ffFlash:0,startT:performance.now()};
   if(mode==='z'){
@@ -481,7 +496,7 @@ function killUnit(u,x,y,src,dm){
   u.dead=true;const a=Math.atan2(u.y-y,u.x-x)+rnd(-.3,.3),f=clamp(dm/70,.25,3.2);
   P.push({k:3,x:u.x,y:u.y,z:1,vx:Math.cos(a)*f*28,vy:Math.sin(a)*f*28,vz:f*22+rnd(0,12),r:0,life:0,max:6,ang:rnd(0,TAU),spin:rnd(-9,9)});
   const player=typeof src==='number';
-  if(u.side==='e'){if(player){G.kills++;addScore(ZSC[u.kind]||(u.kind==='aa'?300:u.kind==='rpg'?150:100),u.x,u.y);}}
+  if(u.side==='e'){if(player){G.kills++;charge(1);addScore(ZSC[u.kind]||(u.kind==='aa'?300:u.kind==='rpg'?150:100),u.x,u.y);}}
   else{G.fdead++;
     if(player){G.ff++;G.ffFlash=2.5;radio(pick(R_FF),'地面');msg('友军误伤！停火！',2.5,true);
       if(G.ff>=G.ffMax&&!G.demo)endGame(false,'你误杀了太多友军，任务被中止。');}
@@ -490,11 +505,11 @@ function killUnit(u,x,y,src,dm){
 function killVeh(v,src){
   v.dead=true;v.burn=rnd(18,30);v.hp=0;boomFx(v.x,v.y,40,'v');blast(v.x,v.y,36,110,'v');
   const player=typeof src==='number';
-  if(player&&v.kind!=='car'){G.vk++;addScore(v.kind==='btr'?1000:400,v.x,v.y);radio(v.kind==='btr'?'装甲车已被摧毁，干得好！':'车辆摧毁。','火控','vk',3);}
+  if(player&&v.kind!=='car'){G.vk++;charge(3);addScore(v.kind==='btr'?1000:400,v.x,v.y);radio(v.kind==='btr'?'装甲车已被摧毁，干得好！':'车辆摧毁。','火控','vk',3);}
   if(v.kind==='tech')P.push({k:3,x:v.x,y:v.y,z:6,vx:rnd(-30,30),vy:rnd(-30,30),vz:50,r:0,life:0,max:6,ang:0,spin:8});
 }
 function killBld(b){
-  b.dead=true;b.burn=rnd(10,24);G.bk++;
+  b.dead=true;b.burn=rnd(10,24);G.bk++;charge(2);
   for(let i=0;i<16;i++){const a=rnd(0,TAU),r=rnd(0,b.R);P.length<900&&P.push({k:0,x:b.x+Math.cos(a)*r,y:b.y+Math.sin(a)*r,z:rnd(0,b.h),vx:rnd(-8,8),vy:rnd(-8,8),vz:rnd(4,14),r:rnd(14,26),gr:rnd(8,16),life:0,max:rnd(3,6),a:.55,dust:1});}
   debris(b.x,b.y,14,90);
   for(const u of U){if(u.dead)continue;const dx=u.x-b.x,dy=u.y-b.y;if(Math.abs(dx*b.c+dy*b.s)<b.w/2+4&&Math.abs(-dx*b.s+dy*b.c)<b.d/2+4){u.hp=0;killUnit(u,b.x,b.y,u.side==='e'?0:'b',80);}}
@@ -526,7 +541,7 @@ function tryFire(){
   G.cd[w]=wp.cd;G.shots++;SFX['f'+w]();G.shake+=w===0?3:w===1||w===3?1.1:.25;
 }
 function centerSquad(){let x=0,y=0,n=0;for(const f of U)if(f.side==='f'&&!f.dead){x+=f.x;y+=f.y;n++;}if(n){cam.x=x/n;cam.y=y/n;}}
-function setW(i){if(!G||i===G.w||i>=nW())return;G.w=i;G.swT=.22;G.stat=Math.max(G.stat,.55);SFX.swap();}
+function setW(i){if(!G||i===G.w||!wList().includes(i))return;G.w=i;G.swT=.22;G.stat=Math.max(G.stat,.55);SFX.swap();}
 function flare(){if(!G||G.end||G.flareCd>0)return;G.flareCd=9;SFX.flare();
   for(let i=0;i<18;i++)SF.push({x:W*rnd(.05,.95),y:H+rnd(0,40),vx:rnd(-160,160),vy:-rnd(260,520),life:0,max:rnd(1.4,2.2)});
   const M=G.missile;if(M&&!M.def){M.def=true;M.defT=M.t;radio('干扰弹奏效，导弹已脱锁。','机长');msg('导弹已规避',1.6);}}
@@ -560,9 +575,10 @@ function update(dt){
   V.x=cam.x+Math.sin(g.time*.63)*2.2+Math.sin(g.time*1.7)*.8;V.y=cam.y+Math.cos(g.time*.51)*2.2;
   V.ox=W/2+rnd(-1,1)*g.shake;V.oy=H/2+rnd(-1,1)*g.shake;
   g.bloom=Math.max(0,g.bloom-dt*1.6);g.stat=Math.max(0,g.stat-dt*1.8);g.swT=Math.max(0,g.swT-dt);g.ffFlash=Math.max(0,g.ffFlash-dt);
-  for(let i=0;i<g.cd.length;i++)g.cd[i]=Math.max(0,g.cd[i]-dt);
+  const rm=g.boostT>0?BOOST_X:1;g.boostT=Math.max(0,g.boostT-dt);
+  for(let i=0;i<g.cd.length;i++)g.cd[i]=Math.max(0,g.cd[i]-dt*rm);
   const firing=input.mfire||input.kfire||input.tfire;
-  if(!(firing&&g.w===2))g.heat=Math.max(0,g.heat-dt*.34);if(g.over&&g.heat<.35)g.over=false;
+  if(!(firing&&g.w===2)||rm>1)g.heat=Math.max(0,g.heat-dt*.34*rm);if(g.over&&g.heat<.35)g.over=false;
   g.flareCd=Math.max(0,g.flareCd-dt);
   if(g.demo){g.demoT-=dt;if(g.demoT<=0){g.demoT=rnd(.8,2.2);const e=U.filter(u=>!u.dead&&u.side==='e'&&hyp(u.x-cam.x,u.y-cam.y)<380);
       if(e.length){const t=pick(e),w=Math.random()<.35?0:1;SH.push({x:t.x+rnd(-6,6),y:t.y+rnd(-6,6),t:0,T:WP[w].fl,w});}}}
@@ -921,9 +937,13 @@ function hud(){
   let p,lab;if(g.w===2){p=g.heat;lab=g.over?'过热':'热量';}else{p=1-g.cd[g.w]/wp.cd;lab=p>=1?'就绪':'装填中';}
   ctx.fillStyle=g.w===2&&g.over?'rgba(255,100,80,.9)':'rgba(240,240,240,.85)';ctx.fillRect(x0+1,by+1,(bw-2)*clamp(p,0,1),5);
   txt(lab,x0+bw+8,by+8,13,'left');
-  ctx.font=FNT(15,700);let lx=x0;for(let i=0;i<nW();i++){const t=WP[i].k+(touchMode?'':` [${i+1}]`),tw=ctx.measureText(t).width;
+  ctx.font=FNT(15,700);let lx=x0;for(const i of wList()){const t=WP[i].k+(touchMode?'':` [${i+1}]`),tw=ctx.measureText(t).width;
     if(i===g.w){ctx.strokeStyle='#fff';ctx.lineWidth=1.2;ctx.strokeRect(lx-4,by+16,tw+8,20);}
     txt(t,lx,by+31,15,'left',i===g.w?'#fff':'rgba(220,220,220,.55)',700);lx+=tw+16;}
+  {const bmx=boostMax(),act=g.boostT>0,full=g.boost>=bmx,yb=by+46,p=act?g.boostT/BOOST_T:g.boost/bmx,on=act||full&&Math.sin(g.time*8)>-.4;
+    ctx.strokeStyle='rgba(240,240,240,.6)';ctx.lineWidth=1;ctx.strokeRect(x0,yb,bw,5);
+    ctx.fillStyle=act?'rgba(255,210,110,.95)':full?'rgba(255,210,110,.85)':'rgba(240,240,240,.7)';ctx.fillRect(x0+1,yb+1,(bw-2)*clamp(p,0,1),3);
+    txt(act?`快速装填 ${Math.ceil(g.boostT)}s`:full?'快速装填 就绪'+(touchMode?'':' [R]'):`快速装填 ${g.boost}/${bmx}`,x0+bw+8,yb+6,12,'left',on&&(act||full)?'rgba(255,210,110,1)':'rgba(220,220,220,.7)',700);}
   // top-right
   const xr=W-16-SA.r,yr=y0+(touchMode?44:0)+14;
   txt('AC-130H',xr,yr,15,'right','#fff',700);
@@ -993,6 +1013,7 @@ function showEnd(){state='end';document.body.classList.remove('playing');
   $('endStats').innerHTML=st.map(s=>`<div class="stat${s[2]?' big':''}"><span>${s[0]}</span><b>${s[1]}</b></div>`).join('');
   $('nextBtn').style.display=g.win?'':'none';$('retryBtn').textContent=g.win?'重玩本关':'重试本关';endEl.classList.add('show');}
 document.querySelectorAll('.droneBtn').forEach(b=>b.onclick=toggleDrone);syncDroneUI();
+$('no25Btn').onclick=toggle25;sync25UI();document.body.classList.toggle('no25',no25);
 $('startBtn').onclick=()=>startGame(1);$('dayBtn').onclick=()=>startGame(1,0,true);$('zBtn').onclick=()=>startGame(1,0,false,'z');$('zDayBtn').onclick=()=>startGame(1,0,true,'z');
 $('resumeBtn').onclick=resume;$('quitBtn').onclick=toMenu;$('homeBtn').onclick=toMenu;
 $('nextBtn').onclick=()=>startGame(G.level+1,G.score,G.day);$('retryBtn').onclick=()=>G.mode==='z'?startGame(1,0,G.day,'z'):startGame(G.level,G.score0,G.day);
@@ -1005,7 +1026,7 @@ addEventListener('keydown',e=>{
   if(state==='play'){switch(e.code){
     case 'Digit1':case 'Numpad1':setW(0);break;case 'Digit2':case 'Numpad2':setW(1);break;case 'Digit3':case 'Numpad3':setW(2);break;case 'Digit4':case 'Numpad4':setW(3);break;
     case 'KeyQ':cycleW(-1);break;case 'KeyE':case 'Tab':e.preventDefault();cycleW(1);break;
-    case 'KeyF':flare();break;case 'KeyC':centerSquad();break;case 'KeyT':toggleThermal();break;case 'Space':input.kfire=true;e.preventDefault();break;
+    case 'KeyF':flare();break;case 'KeyR':activateBoost();break;case 'KeyC':centerSquad();break;case 'KeyT':toggleThermal();break;case 'Space':input.kfire=true;e.preventDefault();break;
     case 'KeyP':case 'Escape':pause();break;}}
   else if(state==='paused'&&(e.code==='KeyP'||e.code==='Escape'))resume();
   else if(state==='menu'&&e.code==='Enter')startGame(1);
@@ -1046,6 +1067,7 @@ document.querySelectorAll('#touch [data-w]').forEach(b=>tb(b,()=>state==='play'&
 tb($('tFire'),()=>input.tfire=true,()=>input.tfire=false);
 tb($('tFlare'),()=>state==='play'&&flare());
 tb($('tTherm'),toggleThermal);
+tb($('tBoost'),()=>state==='play'&&activateBoost());
 tb($('tpause'),()=>state==='play'?pause():resume());
 if(matchMedia('(pointer:coarse)').matches&&!matchMedia('(pointer:fine)').matches)enableTouch();
 
@@ -1063,6 +1085,7 @@ function updTouch(){
   setBtn($('tFire'),fp,w===2?(G.over?'过热':''):G.cd[w]>0?'装填中':'就绪',input.tfire?'on':w===2&&G.over?'off':'');
   const M=G.missile;setBtn($('tFlare'),G.flareCd>0?(1-G.flareCd/9)*100:0,G.flareCd>0?Math.ceil(G.flareCd)+'s':'就绪',M&&!M.def&&G.flareCd<=0?'warn':G.flareCd>0?'off':'');
   setBtn($('tTherm'),0,G.sens===0?'彩色':G.sens===2?'黑热':'白热','');
+  {const bmx=boostMax(),act=G.boostT>0,full=G.boost>=bmx;setBtn($('tBoost'),act?G.boostT/BOOST_T*100:G.boost/bmx*100,act?Math.ceil(G.boostT)+'s':full?'就绪':G.boost+'/'+bmx,act||full?'on':'');}
 }
 
 // ================= loop =================
