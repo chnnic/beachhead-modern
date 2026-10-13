@@ -1284,7 +1284,7 @@ function drawHUD(){
     bar(bx,by+20*k,bw,10*k,cur/mx,boss.invuln?'#ff8a5a':'#ff4d3a');
     if(boss.invuln)txt('护盾',bx+bw-4*k,by+29*k,9*k,'#5fd0ff','right',UIF,800);
     if(boss.charging>0){bar(bx,by+35*k,bw,4*k,1-boss.charging/CHARGE_T,'#5fd0ff');txt('电磁炮充能',bx,by+46*k,10*k,'#5fd0ff','left',UIF,800);}}
-  for(const c of G.pickups){const [sx,sy,s]=P(c.x,c.y,c.z);txt('火力芯片',sx,sy-Math.max(18,1.6*s)-6,11*k,'#7fd8ff','center',UIF,800);}
+  for(const c of G.pickups){const [sx,sy,s]=P(c.x,c.y,c.z);txt(c.kind==='plate'?'装甲板':'火力芯片',sx,sy-Math.max(18,1.6*s)-6,11*k,c.kind==='plate'?'#7fe08a':'#7fd8ff','center',UIF,800);}
   for(const c of G.crates){const [sx,sy,s]=P(c.x,c.y,c.z),top=sy-(c.landed?1.8:6.6)*s-8;
     txt(c.end?'波次补给':'补给',sx,top,12*k,'#7fe08a','center',UIF,800);}
   // armor bottom-left
@@ -1401,17 +1401,21 @@ function drawCrosshair(S){
 
 // ================================================================ firepower chips (late-game power items)
 const CHIP_P={boat:0.025,tank:0.1,hover:0.12,heli:0.1,jet:0.12,ship:0.8,bpart:0.6};
-function spawnChip(x,y,z){G.pickups.push({chipP:1,x,y:Math.max(0,y),z:Math.max(NEAR_Z+2,z),t:0,landed:y<=0.05,lt:0,spin:rand(0,6)});}
+function spawnChip(x,y,z,kind){G.pickups.push({chipP:1,kind:kind||'chip',x,y:Math.max(0,y),z:Math.max(NEAR_Z+2,z),t:0,landed:y<=0.05,lt:0,spin:rand(0,6)});}
 function dropChip(e){
   if(G.wave<11||e.nolock)return;
   let n=Math.random()<(CHIP_P[e.type]||0)?1:0;if(e.elite&&Math.random()<0.75)n++;if(e.boss)n+=3;
-  for(let i=0;i<n;i++)spawnChip(e.x+rand(-2,2)*i,e.air?e.y+1:0,e.z+rand(-1,1)*i);
+  let m=Math.random()<(CHIP_P[e.type]||0)*0.6?1:0;if(e.elite&&Math.random()<0.4)m++;if(e.boss)m+=2;
+  const y=e.air?e.y+1:0;let k=0;
+  for(let i=0;i<n;i++,k++)spawnChip(e.x+rand(-2,2)*k,y,e.z+rand(-1,1)*k,'chip');
+  for(let i=0;i<m;i++,k++)spawnChip(e.x+rand(-2,2)*k,y,e.z+rand(-1,1)*k,'plate');
 }
 function pickChip(ax,ay){let best=null;for(const c of G.pickups){if(c.got)continue;const [sx,sy,s]=P(c.x,c.y,c.z),r=Math.max(16,1.4*s);
   if(Math.abs(ax-sx)<r&&ay>sy-r*1.6&&ay<sy+6&&(!best||c.z<best.z))best=c;}return best;}
-function takeChip(c){if(c.got)return;c.got=true;G.chips++;sfx.chip();
+function takeChip(c){if(c.got)return;c.got=true;sfx.chip();
   part({kind:'flash',go:1,x:c.x,y:c.y+0.6,z:c.z,life:0.3,size:2.5});
-  floater(c.x,c.y+2,c.z,`火力 +12% → +${G.chips*12}%`,'#7fd8ff');}
+  if(c.kind==='plate'){G.maxHp+=15;G.hp=Math.min(G.maxHp,G.hp+15);floater(c.x,c.y+2,c.z,`装甲上限 +15 → ${G.maxHp}`,'#7fe08a');}
+  else{G.chips++;floater(c.x,c.y+2,c.z,`火力 +12% → +${G.chips*12}%`,'#7fd8ff');}}
 function updateChips(dt){
   for(const c of G.pickups){c.t+=dt;c.spin+=dt*3;
     if(!c.landed){c.y-=2.5*dt;c.x+=Math.sin(c.t*1.3)*0.4*dt;if(c.y<=0){c.y=0;c.landed=true;}}
@@ -1422,6 +1426,11 @@ function drawChip(c){
   const [sx,sy,s]=P(c.x,c.y,c.z);if(sx<-60||sx>W+60)return;
   if(c.landed&&c.lt>9&&Math.sin(c.lt*18)<0)return;
   const r=Math.max(9,0.8*s),cy=sy-r*1.1,sq=Math.abs(Math.cos(c.spin))*0.55+0.45;
+  if(c.kind==='plate'){ctx.save();ctx.translate(sx,cy);ctx.scale(sq,1);
+    ctx.fillStyle='#1d3324';ctx.strokeStyle='#7fe08a';ctx.lineWidth=2;ctx.beginPath();
+    ctx.moveTo(-r,-r*0.9);ctx.lineTo(r,-r*0.9);ctx.lineTo(r,r*0.2);ctx.quadraticCurveTo(r*0.6,r*0.9,0,r*1.15);ctx.quadraticCurveTo(-r*0.6,r*0.9,-r,r*0.2);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.fillStyle='#7fe08a';ctx.fillRect(-r*0.14,-r*0.55,r*0.28,r*1.1);ctx.fillRect(-r*0.5,-r*0.14,r,r*0.28);
+    ctx.restore();G.glowQ.push({n:'green',x:sx,y:cy,r:r*2.6,a:0.5+0.25*Math.sin(G.time*7)});return;}
   ctx.save();ctx.translate(sx,cy);ctx.scale(sq,1);
   ctx.fillStyle='#0d2a3a';ctx.strokeStyle='#7fd8ff';ctx.lineWidth=2;ctx.beginPath();
   for(let i=0;i<6;i++){const a=i*Math.PI/3;ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);}ctx.closePath();ctx.fill();ctx.stroke();
@@ -1672,6 +1681,7 @@ const UPS=[
   {id:'ciws',name:'近防拦截系统',tag:'防御',desc:'自动击落来袭火箭与无人机',max:3,cost:l=>300+l*250},
   {id:'armor',name:'复合装甲',tag:'防御',desc:'最大装甲 +25，并修复 25',max:5,cost:l=>180+l*140},
   {id:'repair',name:'紧急维修',tag:'维修',desc:'立即修复 40 点装甲',max:99,cost:()=>90,repeat:true},
+  {id:'plate',name:'装甲板',tag:'防御',desc:'装甲上限 +15 并修复 15，可无限叠加（每次购买涨价）',max:999,cost:()=>400+100*(G.platesBought||0),repeat:true},
   {id:'chip',name:'火力芯片',tag:'强化',desc:'全部武器伤害 +12%，可无限叠加（每次购买涨价）',max:999,cost:()=>500+150*(G.chipsBought||0),repeat:true},
   {id:'nuke',name:'战术核弹',tag:'特种',desc:'按 N 发射，清除场上全部敌人',max:99,cost:()=>1500,repeat:true},
   {id:'emp',name:'EMP 电磁脉冲',tag:'特种',desc:'按 R：击落所有无人机与来袭导弹，战机坠毁，载具瘫痪 4 秒。2 级：冷却 30→22 秒，瘫痪 6 秒',max:2,cost:l=>[900,1400][l]},
@@ -1695,7 +1705,7 @@ function renderShop(){
   $('shopCredits').textContent=G.credits.toLocaleString();
   $('upgrades').innerHTML=UPS.map(u=>{const lv=u.repeat?0:G.up[u.id],cost=u.cost(lv),maxed=!u.repeat&&lv>=u.max;
     const full=(u.id==='repair'&&G.hp>=G.maxHp)||(u.id==='nuke'&&G.nukes>=2);const dis=maxed||full||G.credits<cost;
-    const pips=u.id==='chip'?`<div class="d" style="min-height:0">已装 ${G.chips} 枚 · 火力 +${G.chips*12}%</div>`:u.id==='nuke'?`<div class="d" style="min-height:0">持有 ${G.nukes} / 2</div>`:u.repeat?`<div class="d" style="min-height:0">装甲 ${Math.ceil(G.hp)} / ${G.maxHp}</div>`:`<div class="pips">${Array.from({length:u.max},(_,i)=>`<i class="${i<lv?'on':''}"></i>`).join('')}</div>`;
+    const pips=u.id==='plate'?`<div class="d" style="min-height:0">装甲 ${Math.ceil(G.hp)} / ${G.maxHp}</div>`:u.id==='chip'?`<div class="d" style="min-height:0">已装 ${G.chips} 枚 · 火力 +${G.chips*12}%</div>`:u.id==='nuke'?`<div class="d" style="min-height:0">持有 ${G.nukes} / 2</div>`:u.repeat?`<div class="d" style="min-height:0">装甲 ${Math.ceil(G.hp)} / ${G.maxHp}</div>`:`<div class="pips">${Array.from({length:u.max},(_,i)=>`<i class="${i<lv?'on':''}"></i>`).join('')}</div>`;
     return`<div class="up"><div class="t">${u.name}<span class="tag">${u.tag}</span></div><div class="d">${u.desc}</div>${pips}
       <button data-id="${u.id}" ${dis?'disabled':''}>${maxed?'已满级':full?(u.id==='nuke'?'已满':'装甲已满'):'$'+cost}</button></div>`;}).join('');
   $('upgrades').querySelectorAll('button').forEach(b=>b.onclick=()=>buy(b.dataset.id));
@@ -1705,6 +1715,7 @@ function buy(id){const u=UPS.find(x=>x.id===id);const lv=u.repeat?0:G.up[id],cos
   if(id==='nuke'&&G.nukes>=2){G.credits+=cost;sfx.deny();return;}
   if(id==='repair')G.hp=Math.min(G.maxHp,G.hp+40);
   else if(id==='nuke')G.nukes++;
+  else if(id==='plate'){G.maxHp+=15;G.hp=Math.min(G.maxHp,G.hp+15);G.platesBought=(G.platesBought||0)+1;}
   else if(id==='chip'){G.chips++;G.chipsBought=(G.chipsBought||0)+1;}
   else{G.up[id]++;if(id==='armor'){G.maxHp+=25;G.hp=Math.min(G.maxHp,G.hp+25);}
     if(id==='emp'&&G.up.emp===1)warn('已解锁 EMP · 按 R 使用','#5fd0ff');if(id==='mlrs'&&G.up.mlrs===1)warn('已解锁多管火箭炮 · 按 F 使用','#ffb050');}
