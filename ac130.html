@@ -49,6 +49,13 @@ body.touch .dkeys{display:none}
 .btn:hover{filter:brightness(1.06);transform:translateY(-1px)}
 .btn:active{transform:translateY(1px)}
 .btn.day{background:linear-gradient(180deg,#ffe3a3,#f0b552);box-shadow:0 6px 22px rgba(255,190,80,.25),inset 0 1px 0 #fff}
+.lvsel{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 16px}
+.lvsel span{color:var(--muted);font-size:13px;letter-spacing:.1em;margin-right:4px}
+.lvsel em{font-style:normal;color:var(--muted);font-size:12px;margin-left:4px}
+.lvsel button{font-family:var(--num);font-weight:700;font-size:16px;min-width:44px;padding:6px 10px;border-radius:8px;cursor:pointer;
+  background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--text)}
+.lvsel button.on{background:#fff;color:#0c0f0c;border-color:#fff}
+.lvsel button:focus-visible{outline:2px solid #fff;outline-offset:2px}
 .btn.toggle{font-size:14px;padding:9px 14px;letter-spacing:.06em;font-weight:700}
 .btn.toggle.offx{opacity:.6}
 .btn.zombie{background:linear-gradient(180deg,#c9f29a,#7fc24a);box-shadow:0 6px 22px rgba(140,210,90,.25),inset 0 1px 0 #fff}
@@ -133,6 +140,10 @@ body.touchui #tpause{display:block}
       <div><kbd>干扰弹</kbd>躲避防空导弹</div>
       <div><kbd>燃烧弹</kbd>丧尸围城专用，烧出一片火海</div>
     </div>
+    <div class="lvsel" role="group" aria-label="起始关卡"><span>起始关卡</span>
+      <button data-lv="1">1</button><button data-lv="5">5</button><button data-lv="10">10</button>
+      <button data-lv="15">15</button><button data-lv="20">20</button><button data-lv="25">25</button>
+      <em>夜间 / 白天任务</em></div>
     <div class="row">
       <div class="btns"><button class="btn" id="startBtn">夜间任务 ▶</button><button class="btn day" id="dayBtn">白天任务 ☀</button><button class="btn zombie" id="zBtn">丧尸围城 ☣</button><button class="btn zombie zday" id="zDayBtn">丧尸围城 · 白天 ☀</button></div>
       <div class="hs">最高得分 <b id="best">0</b><br>丧尸围城 <b id="bestz">0</b> 波</div>
@@ -1026,7 +1037,10 @@ function showEnd(){state='end';document.body.classList.remove('playing');
   $('nextBtn').style.display=g.win?'':'none';$('retryBtn').textContent=g.win?'重玩本关':'重试本关';endEl.classList.add('show');}
 document.querySelectorAll('.droneBtn').forEach(b=>b.onclick=toggleDrone);syncDroneUI();
 $('no25Btn').onclick=toggle25;sync25UI();document.body.classList.toggle('no25',no25);
-$('startBtn').onclick=()=>startGame(1);$('dayBtn').onclick=()=>startGame(1,0,true);$('zBtn').onclick=()=>startGame(1,0,false,'z');$('zDayBtn').onclick=()=>startGame(1,0,true,'z');
+let startLv=store.get('ac130_startlv',1);
+function syncLv(){document.querySelectorAll('.lvsel [data-lv]').forEach(b=>{const on=+b.dataset.lv===startLv;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on);});}
+document.querySelectorAll('.lvsel [data-lv]').forEach(b=>b.onclick=()=>{startLv=+b.dataset.lv;store.set('ac130_startlv',startLv);syncLv();});syncLv();
+$('startBtn').onclick=()=>startGame(startLv);$('dayBtn').onclick=()=>startGame(startLv,0,true);$('zBtn').onclick=()=>startGame(1,0,false,'z');$('zDayBtn').onclick=()=>startGame(1,0,true,'z');
 $('resumeBtn').onclick=resume;$('quitBtn').onclick=toMenu;$('homeBtn').onclick=toMenu;
 $('nextBtn').onclick=()=>startGame(G.level+1,G.score,G.day);$('retryBtn').onclick=()=>G.mode==='z'?startGame(1,0,G.day,'z'):startGame(G.level,G.score0,G.day);
 
@@ -1041,7 +1055,7 @@ addEventListener('keydown',e=>{
     case 'KeyF':flare();break;case 'KeyR':activateBoost();break;case 'KeyC':centerSquad();break;case 'KeyT':toggleThermal();break;case 'Space':input.kfire=true;e.preventDefault();break;
     case 'KeyP':case 'Escape':pause();break;}}
   else if(state==='paused'&&(e.code==='KeyP'||e.code==='Escape'))resume();
-  else if(state==='menu'&&e.code==='Enter')startGame(1);
+  else if(state==='menu'&&e.code==='Enter')startGame(startLv);
   else if(state==='end'&&e.code==='Enter')(G.win?$('nextBtn'):$('retryBtn')).click();
 });
 addEventListener('keyup',e=>{K[e.code]=false;if(e.code==='Space')input.kfire=false;});
