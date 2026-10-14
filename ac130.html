@@ -424,7 +424,9 @@ function toggle25(){no25=!no25;store.set('ac130_no25',no25);document.body.classL
 function sync25UI(){const b=$('no25Btn');if(b){b.textContent='25mm 机炮：'+(no25?'停用':'启用');b.classList.toggle('offx',no25);}}
 // quick reload: kills charge the meter, R spends it for a burst of fast reloading
 // crew experience: reloads speed up as levels (or zombie waves) climb, so late levels keep pace with the enemy
-const reloadRate=()=>!G?1:G.mode==='z'?Math.min(1.8,1+.07*(Math.max(1,G.wave)-1)):Math.min(1.9,1+.18*(G.level-1));
+const reloadRate=()=>!G?1:G.mode==='z'?Math.min(1.8,1+.07*(Math.max(1,G.wave)-1)):Math.min(2.1,1+.18*(G.level-1));
+// enemy difficulty grows normally up to level 6, then only 30% as fast per level (soft cap), so deep runs stay winnable
+const dLv=lv=>lv<=6?lv:6+(lv-6)*.3;
 const BOOST_T=12,BOOST_X=2.5,boostMax=()=>G&&G.mode==='z'?30:15;
 function charge(n){if(G&&!G.demo&&G.boostT<=0)G.boost=Math.min(boostMax(),G.boost+n);}
 function activateBoost(){if(!G||G.end||G.boostT>0||G.boost<boostMax())return;G.boostT=BOOST_T;G.boost=0;
@@ -452,7 +454,7 @@ function newG(level,score,demo,day,mode){
     msg(`丧尸围城 · ${day?'白天':'夜间'} · 守住幸存者营地`,3.5);return;}
   for(let i=0;i<4;i++){const p=lineAt(PATH,-i*9+30);U.push(mkUnit('f','inf',p.x+p.nx*(i%2?7:-7),p.y+p.ny*(i%2?7:-7)));}
   const p=lineAt(PATH,140);cam.x=p.x;cam.y=p.y;V.zc=1;
-  spawnGroup(4+level,true);spawnGroup(3+level,false);
+  {const dl=Math.round(dLv(level));spawnGroup(4+dl,true);spawnGroup(3+dl,false);}
   if(!demo){
     radio('Spectre 已进入战位，传感器在线。','机长');
     radio(day?'日间行动，红外频闪看不清，友军背着橙色识别板。掩护他们到撤离点。':'地面部队准备推进。掩护他们到撤离点，注意他们身上的红外频闪。','火控');
@@ -471,7 +473,7 @@ function spawnGroup(n,fromBld){
   if(fromBld||Math.random()<.5){const c=[];for(const b of B){if(b.dead)continue;const dx=b.x-lp.x,dy=b.y-lp.y,d=hyp(dx,dy);
       if(d>230&&d<620&&dx*fw.dx+dy*fw.dy>-80)c.push(b);}if(c.length)bld=pick(c);}
   if(bld){sx=bld.x;sy=bld.y;}else{const a=Math.atan2(fw.dy,fw.dx)+rnd(-1.7,1.7),r=rnd(420,600);sx=clamp(lp.x+Math.cos(a)*r,30,MAP-30);sy=clamp(lp.y+Math.sin(a)*r,30,MAP-30);}
-  for(let i=0;i<n;i++)U.push(mkUnit('e',Math.random()<.16+G.level*.03?'rpg':'inf',sx+rnd(-14,14),sy+rnd(-14,14)));
+  for(let i=0;i<n;i++)U.push(mkUnit('e',Math.random()<Math.min(.26,.16+dLv(G.level)*.02)?'rpg':'inf',sx+rnd(-14,14),sy+rnd(-14,14)));
 }
 function spawnAA(){const lp=leadPos(),fw=lineAt(PATH,G.sq.s+200),a=Math.atan2(fw.dy,fw.dx)+rnd(-1.2,1.2),r=rnd(300,440);
   const u=mkUnit('e','aa',clamp(lp.x+Math.cos(a)*r,40,MAP-40),clamp(lp.y+Math.sin(a)*r,40,MAP-40));u.cool=rnd(4,7);u.hp=30;U.push(u);
@@ -484,7 +486,8 @@ function spawnVeh(kind){const s=Math.min(PATH.total,G.sq.s+rnd(700,850)),p=lineA
 function blast(x,y,r,dmg,src){
   let kills=0;const player=typeof src==='number';
   for(const u of U){if(u.dead)continue;const d=hyp(u.x-x,u.y-y);
-    if(d<r){const dm=dmg*(1-.5*d/r);u.hp-=dm;if(u.hp<=0){killUnit(u,x,y,src,dm);if(u.side==='e')kills++;}else if(u.side==='e')flee(u,x,y);}
+    // enemy rockets/shells hit the squad softer (they take cover); rockets were the main late-game squad killer
+    if(d<r){const dm=dmg*(1-.5*d/r)*(src==='r'&&u.side==='f'?.6:1);u.hp-=dm;if(u.hp<=0){killUnit(u,x,y,src,dm);if(u.side==='e')kills++;}else if(u.side==='e')flee(u,x,y);}
     else if(u.side==='e'&&d<r*2.4&&Math.random()<.6)flee(u,x,y);}
   for(const v of VEH){if(v.dead)continue;const d=Math.max(0,hyp(v.x-x,v.y-y)-v.len*.4);
     if(d<r){v.hp-=dmg*(1-.5*d/r)*(player?v.arm[src]??1:1);if(v.hp<=0)killVeh(v,src);}}
@@ -629,10 +632,10 @@ function update(dt){
 }
 
 function director(dt){
-  const g=G,lv=g.level,prog=g.sq.s/PATH.total;if(g.phase==='intro')return;
+  const g=G,lv=dLv(g.level),prog=g.sq.s/PATH.total;if(g.phase==='intro')return;
   let alive=0;for(const u of U)if(!u.dead&&u.side==='e')alive++;
   g.spT-=dt;const maxA=Math.round(4+lv*2.5+prog*6);
-  if(g.spT<=0&&alive<maxA){spawnGroup(rint(2,3)+Math.min(4,lv),Math.random()<.6);g.spT=Math.max(2.8,9-lv*.8-prog*2.5)*rnd(.7,1.3);}
+  if(g.spT<=0&&alive<maxA){spawnGroup(rint(2,3)+Math.min(4,Math.round(lv)),Math.random()<.6);g.spT=Math.max(2.8,9-lv*.8-prog*2.5)*rnd(.7,1.3);}
   if(g.demo)return;
   g.vT-=dt;if(g.vT<=0&&g.phase==='go'){spawnVeh('tech');g.vT=Math.max(15,38-lv*5)*rnd(.8,1.2);}
   if(lv>=2){g.bT-=dt;if(g.bT<=0&&g.phase==='go'){spawnVeh('btr');g.bT=Math.max(32,75-lv*7)*rnd(.8,1.2);}}
@@ -692,7 +695,7 @@ function updEnemy(u,dt){
     if(d>u.eng){mx=dx/d;my=dy/d;u.st='move';}
     else{u.st='fire';if(u.cool<=0){
       if(u.kind==='rpg'){RK.push({x:u.x,y:u.y,tx:tg.x+rnd(-24,24),ty:tg.y+rnd(-24,24),spd:150});u.cool=rnd(5.5,8.5);EX.push({x:u.x,y:u.y,r:10,t:0,max:.1});}
-      else{shot(u,tg.x+rnd(-6,6),tg.y+rnd(-6,6));if(Math.random()<.09+g.level*.012){tg.hp-=rnd(3,6);if(tg.hp<=0)killUnit(tg,u.x,u.y,'e',10);}
+      else{shot(u,tg.x+rnd(-6,6),tg.y+rnd(-6,6));if(Math.random()<.09+dLv(g.level)*.012){tg.hp-=rnd(3,6);if(tg.hp<=0)killUnit(tg,u.x,u.y,'e',10);}
         if(u.burst>0){u.burst--;u.cool=.13;}else{u.burst=rint(1,3);u.cool=rnd(1.2,2.4);}}}}}
   if(mx||my){u.x+=mx*spd*dt;u.y+=my*spd*dt;u.mv=true;}else u.mv=false;
   avoidB(u,45*dt);u.x=clamp(u.x,5,MAP-5);u.y=clamp(u.y,5,MAP-5);
