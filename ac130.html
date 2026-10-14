@@ -84,6 +84,9 @@ body.touch .dkeys{display:none}
 #touch button.on{border-color:#fff;box-shadow:0 0 14px rgba(255,255,255,.35)}
 #touch button.off{opacity:.45}
 #touch button.warn{border-color:#ff6a5a;box-shadow:0 0 16px rgba(255,90,70,.6);animation:blink .35s infinite alternate}
+#touch #tBoost b{font-family:var(--ui);font-size:13px;letter-spacing:0;font-weight:800}
+#touch #tBoost.ready{border-color:#ffd27a;box-shadow:0 0 16px rgba(255,200,90,.6);animation:glow .6s infinite alternate}
+@keyframes glow{to{background:rgba(255,200,90,.3)}}
 #touch button.pressed{transform:scale(.94)}
 #touch .fire{grid-column:span 3;height:var(--fh);border-radius:18px;border-color:rgba(255,255,255,.5)}
 #touch .fire b{font-family:var(--ui);font-size:18px;letter-spacing:.35em;font-weight:800}
@@ -181,7 +184,7 @@ body.touchui #tpause{display:block}
       <div class="zonly"><kbd>燃烧弹</kbd>点燃一片地面</div>
       <div class="nozonly"><kbd>干扰弹</kbd>躲避防空导弹</div>
       <div><kbd>传感器</kbd>彩色 / 白热 / 黑热</div>
-      <div><kbd>装填</kbd>击杀攒满后快速装填</div>
+      <div><kbd>快速换弹</kbd>击杀攒满后 12 秒装填加速</div>
       <div><kbd>急救</kbd>给小队空投医疗包</div>
       <div><kbd>烟雾</kbd>烟幕掩护小队</div>
     </div>
@@ -213,7 +216,7 @@ body.touchui #tpause{display:block}
   <button data-w="2"><b>25</b><span></span></button>
   <button id="tFlare" class="w2"><b>干扰弹</b><span></span></button>
   <button id="tInc" class="w2" data-w="3"><b>燃烧弹</b><span></span></button>
-  <button id="tBoost"><b>装填</b><span></span></button>
+  <button id="tBoost"><b>快速换弹</b><span></span></button>
   <button id="tMed"><b>急救</b><span></span></button>
   <button id="tSmoke"><b>烟雾</b><span></span></button>
   <button id="tTherm"><b>传感器</b><span>白热</span></button>
@@ -1145,7 +1148,7 @@ function updTouch(){
   setBtn($('tTherm'),0,G.sens===0?'彩色':G.sens===2?'黑热':'白热','');
   setBtn($('tMed'),G.medCd>0?(1-G.medCd/MED_CD())*100:0,G.medDrop?'空投':G.medCd>0?Math.ceil(G.medCd)+'s':'就绪',G.medCd>0?'off':'');
   setBtn($('tSmoke'),G.smokeT>0?G.smokeT/SMOKE_T*100:G.smokeCd>0?(1-G.smokeCd/SMOKE_CD)*100:0,G.smokeT>0?'生效'+Math.ceil(G.smokeT)+'s':G.smokeCd>0?Math.ceil(G.smokeCd)+'s':'就绪',G.smokeT>0?'on':G.smokeCd>0?'off':'');
-  {const bmx=boostMax(),act=G.boostT>0,full=G.boost>=bmx;setBtn($('tBoost'),act?G.boostT/BOOST_T*100:G.boost/bmx*100,act?Math.ceil(G.boostT)+'s':full?'就绪':G.boost+'/'+bmx,act||full?'on':'');}
+  {const bmx=boostMax(),act=G.boostT>0,full=G.boost>=bmx;setBtn($('tBoost'),act?G.boostT/BOOST_T*100:G.boost/bmx*100,act?'加速 '+Math.ceil(G.boostT)+'s':full?'点击使用':G.boost+'/'+bmx,act?'on':'');$('tBoost').classList.toggle('ready',full&&!act);}
 }
 
 // ================= loop =================
