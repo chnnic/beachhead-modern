@@ -530,8 +530,7 @@ function blast(x,y,r,dmg,src){
   let kills=0;const player=typeof src==='number';
   for(const u of U){if(u.dead)continue;const d=hyp(u.x-x,u.y-y);
     // enemy rockets/shells hit the squad softer (they take cover); rockets were the main late-game squad killer
-    if(d<r){const dm=dmg*(1-.5*d/r)*(src==='r'&&u.side==='f'?.6:1);u.hp-=dm;if(u.hp<=0){killUnit(u,x,y,src,dm);if(u.side==='e')kills++;}else if(u.side==='e')flee(u,x,y);}
-    else if(u.side==='e'&&d<r*2.4&&Math.random()<.6)flee(u,x,y);}
+    if(d<r){const dm=dmg*(1-.5*d/r)*(src==='r'&&u.side==='f'?.6:1);u.hp-=dm;if(u.hp<=0){killUnit(u,x,y,src,dm);if(u.side==='e')kills++;}}}
   for(const v of VEH){if(v.dead)continue;const d=Math.max(0,hyp(v.x-x,v.y-y)-v.len*.4);
     if(d<r){v.hp-=dmg*(1-.5*d/r)*(player?v.arm[src]??1:1);if(v.hp<=0)killVeh(v,src);}}
   if(player&&WP[src].bld>0)for(const b of B){if(b.dead)continue;const dx=x-b.x,dy=y-b.y;if(hyp(dx,dy)>b.R+r)continue;
@@ -539,7 +538,6 @@ function blast(x,y,r,dmg,src){
     if((lx<b.w/2&&ly<b.d/2)||hyp(Math.max(0,lx-b.w/2),Math.max(0,ly-b.d/2))<r*.45){b.hp-=WP[src].bld;b.smk=6;if(b.hp<=0)killBld(b);}}
   return kills;
 }
-function flee(u,x,y){if(u.kind[0]==='z')return;if(u.kind==='aa'&&Math.random()<.5)return;u.st='flee';u.ft=rnd(1,2.2);u.fx=u.x-x+rnd(-5,5);u.fy=u.y-y+rnd(-5,5);}
 function killUnit(u,x,y,src,dm){
   u.dead=true;const a=Math.atan2(u.y-y,u.x-x)+rnd(-.3,.3),f=clamp(dm/70,.25,3.2);
   P.push({k:3,x:u.x,y:u.y,z:1,vx:Math.cos(a)*f*28,vy:Math.sin(a)*f*28,vz:f*22+rnd(0,12),r:0,life:0,max:6,ang:rnd(0,TAU),spin:rnd(-9,9)});
@@ -729,8 +727,7 @@ function updEnemy(u,dt){
   const g=G;u.cool-=dt;u.retT-=dt;u.mark=Math.max(0,u.mark-dt);
   if(u.retT<=0){u.retT=.5;u.tg=nearestF(u.x,u.y);}
   const tg=u.tg&&!u.tg.dead&&!u.tg.board?u.tg:null;let mx=0,my=0,spd=u.spd;
-  if(u.st==='flee'){u.ft-=dt;const l=hyp(u.fx,u.fy)||1;mx=u.fx/l;my=u.fy/l;spd*=1.6;if(u.ft<=0)u.st='move';}
-  else if(u.kind==='aa'){
+  if(u.kind==='aa'){
     if(u.cool<=0&&!g.missile&&!g.end&&!g.demo){g.missile={t:0,x:u.x,y:u.y,def:false,beep:0};u.mark=12;u.cool=rnd(20,26);
       smoke(u.x,u.y,2,10,3,.6,10);EX.push({x:u.x,y:u.y,r:14,t:0,max:.2});radio('导弹发射！立即投放干扰弹！','机长');}
     else if(u.cool<=0)u.cool=2;}
