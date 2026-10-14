@@ -423,6 +423,8 @@ function toggle25(){no25=!no25;store.set('ac130_no25',no25);document.body.classL
   if(G&&no25&&G.w===2){G.w=1;G.swT=.22;}sync25UI();}
 function sync25UI(){const b=$('no25Btn');if(b){b.textContent='25mm 机炮：'+(no25?'停用':'启用');b.classList.toggle('offx',no25);}}
 // quick reload: kills charge the meter, R spends it for a burst of fast reloading
+// crew experience: reloads speed up as levels (or zombie waves) climb, so late levels keep pace with the enemy
+const reloadRate=()=>!G?1:G.mode==='z'?Math.min(1.8,1+.07*(Math.max(1,G.wave)-1)):Math.min(1.9,1+.18*(G.level-1));
 const BOOST_T=12,BOOST_X=2.5,boostMax=()=>G&&G.mode==='z'?30:15;
 function charge(n){if(G&&!G.demo&&G.boostT<=0)G.boost=Math.min(boostMax(),G.boost+n);}
 function activateBoost(){if(!G||G.end||G.boostT>0||G.boost<boostMax())return;G.boostT=BOOST_T;G.boost=0;
@@ -535,7 +537,7 @@ function boomFx(x,y,r,w){
 // ---- firing
 function tryFire(){
   const w=G.w,wp=WP[w];if(G.swT>0||G.cd[w]>0||G.end)return;
-  if(w===2){if(G.over)return;G.heat+=.03;if(G.heat>=1){G.heat=1;G.over=true;SFX.over();msg('25mm 过热',1.2,true);}}
+  if(w===2){if(G.over)return;G.heat+=.03/reloadRate();if(G.heat>=1){G.heat=1;G.over=true;SFX.over();msg('25mm 过热',1.2,true);}}
   toW(W/2+aim.x,H/2+aim.y);const a=rnd(0,TAU),r=Math.sqrt(Math.random())*wp.sp;
   SH.push({x:_x+Math.cos(a)*r,y:_y+Math.sin(a)*r,t:0,T:wp.fl*rnd(.95,1.05),w});
   G.cd[w]=wp.cd;G.shots++;SFX['f'+w]();G.shake+=w===0?3:w===1||w===3?1.1:.25;
@@ -575,10 +577,10 @@ function update(dt){
   V.x=cam.x+Math.sin(g.time*.63)*2.2+Math.sin(g.time*1.7)*.8;V.y=cam.y+Math.cos(g.time*.51)*2.2;
   V.ox=W/2+rnd(-1,1)*g.shake;V.oy=H/2+rnd(-1,1)*g.shake;
   g.bloom=Math.max(0,g.bloom-dt*1.6);g.stat=Math.max(0,g.stat-dt*1.8);g.swT=Math.max(0,g.swT-dt);g.ffFlash=Math.max(0,g.ffFlash-dt);
-  const rm=g.boostT>0?BOOST_X:1;g.boostT=Math.max(0,g.boostT-dt);
+  const rm=(g.boostT>0?BOOST_X:1)*reloadRate();g.boostT=Math.max(0,g.boostT-dt);
   for(let i=0;i<g.cd.length;i++)g.cd[i]=Math.max(0,g.cd[i]-dt*rm);
   const firing=input.mfire||input.kfire||input.tfire;
-  if(!(firing&&g.w===2)||rm>1)g.heat=Math.max(0,g.heat-dt*.34*rm);if(g.over&&g.heat<.35)g.over=false;
+  if(!(firing&&g.w===2)||g.boostT>0)g.heat=Math.max(0,g.heat-dt*.34*rm);if(g.over&&g.heat<.35)g.over=false;
   g.flareCd=Math.max(0,g.flareCd-dt);
   if(g.demo){g.demoT-=dt;if(g.demoT<=0){g.demoT=rnd(.8,2.2);const e=U.filter(u=>!u.dead&&u.side==='e'&&hyp(u.x-cam.x,u.y-cam.y)<380);
       if(e.length){const t=pick(e),w=Math.random()<.35?0:1;SH.push({x:t.x+rnd(-6,6),y:t.y+rnd(-6,6),t:0,T:WP[w].fl,w});}}}
@@ -933,6 +935,7 @@ function hud(){
   reticle(W/2+aim.x,H/2+aim.y);
   // top-left weapon block
   const wp=WP[g.w];txt(wp.n,x0,y0+24,28,'left','#fff',700);
+  {const rr=reloadRate();if(rr>1.001){ctx.font=FNT(28,700);txt(`装填 ×${rr.toFixed(2)}`,x0+ctx.measureText(wp.n).width+10,y0+22,13,'left','rgba(255,210,110,.95)',700);}}
   const bw=118,by=y0+34;ctx.strokeStyle='rgba(240,240,240,.7)';ctx.lineWidth=1;ctx.strokeRect(x0,by,bw,7);
   let p,lab;if(g.w===2){p=g.heat;lab=g.over?'过热':'热量';}else{p=1-g.cd[g.w]/wp.cd;lab=p>=1?'就绪':'装填中';}
   ctx.fillStyle=g.w===2&&g.over?'rgba(255,100,80,.9)':'rgba(240,240,240,.85)';ctx.fillRect(x0+1,by+1,(bw-2)*clamp(p,0,1),5);
